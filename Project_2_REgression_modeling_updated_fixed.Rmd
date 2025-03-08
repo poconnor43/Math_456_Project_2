@@ -1,0 +1,38 @@
+---
+title: "Updated_R_Project_2_with_fixes"
+output: pdf_document
+date: "2025-03-07"
+---
+
+# Title
+### Author
+### Date
+
+# Introduction
+
+```{r} 
+# Call this section of code to install all of the libraries on your device
+#install.packages(c("caret", "ggplot2", "MASS", "car", "dplyr", "tibble", "foreign","reshape2"))
+#Refernce Library calls to which data sets will be implemented and used
+
+library(caret)
+library(tidyverse)
+library(tidymodels)
+library(MASS)
+library(car)
+library(foreign)
+```
+
+### Download the data and create a workable
+```{r}
+# load and display the data set we are working with
+data <- read.arff("house_sales_reduced.arff")
+View(data)
+```
+
+```{r}
+data %>% 
+  select(-c(sqft_living15, sqft_lot15, zipcode, id, yr_renovated)) %>% 
+  filter()
+  
+```

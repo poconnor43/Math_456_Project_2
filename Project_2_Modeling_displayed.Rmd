@@ -1,0 +1,418 @@
+---
+title: "Multi_Regression_Essay_2"
+output: pdf_document
+date: "2025-03-06"
+---
+
+# Title
+### Authors
+### 3/12/2025
+
+
+# Introduction
+```{r} 
+# Call this section of code to install all of the libraries on your device
+#install.packages(c("caret", "ggplot2", "MASS", "car", "dplyr", "tibble", "foreign","reshape2"))
+#Refernce Library calls to which data sets will be implemented and used
+
+# library(caret)
+library(tidyverse)
+library(tidymodels)
+library(leaps)
+# library(MASS)
+# library(car)
+library(foreign)
+library(GGally)
+library(corrr)
+# library(boot)
+library(randomForest)
+```
+### Download the data and create a workable
+```{r}
+# load and display the data set we are working with
+data <- read.arff("house_sales_reduced.arff")
+# View(data)
+```
+
+# D
+```{r}
+cleaned <- data %>% 
+  select(-c(sqft_living15, sqft_lot15, id, attribute_0, lat, long, zipcode)) %>% 
+  filter(across(where(is.numeric), \(col) abs(col - mean(col)) <= 3 * sd(col)))
+```
+
+```{r}
+cleaned %>% 
+  select(where(is.numeric)) %>%
+  correlate() %>% 
+  shave() %>% 
+  mutate(across(where(is.numeric), \(col) if_else(col < abs(0.5), NA, col)))
+```
+
+```{r}
+# 2 partition version 
+data_split <- initial_split(cleaned, prop = 0.7)
+training <- training(data_split)
+testing <- testing(data_split)
+lin_mod <- lm(price ~ ., data = cleaned)
+
+# Plugging in lm objeect into plot function automatically gives the diagnostic plots 
+plot(lin_mod, which = 4)
+sort(cooks.distance(lin_mod), decreasing = T)
+
+model_data <- augment(lin_mod)
+
+# Calculate the threshold (4 / number of observations)
+threshold <- 4 / nrow(training)
+
+# Identify outliers where Cook's Distance is greater than the threshold
+outliers <- augment(lin_mod) %>%
+  filter(.cooksd >  4 / nrow(cleaned))
+
+predictions <- predict(object = lin_mod, newdata = testing)
+
+truth_est <- bind_cols(truth = testing$price, estimate = predictions) %>% 
+  mutate(residuals = truth - estimate)
+
+rmse(truth = truth, estimate = estimate, data = truth_est)
+rsq(truth = truth, estimate = estimate, data = truth_est)
+
+# residual plot for linear regression model
+truth_est %>% 
+  ggplot(aes(x = estimate, y = residuals)) +
+  geom_point(color = "green4") + 
+  geom_hline(yintercept = 0, color = "red", linetype = "dashed", size = 1)
+
+# estimate vs truth for linear regression model
+truth_est %>% 
+  ggplot(aes(x = truth, y = estimate)) +
+  geom_point(color = "blue") + 
+  geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed", size = 1)
+
+# cv_fit <- cv.glm(glmfit = lin_mod, data = cleaned, K = 10)
+# cvprice ~ sqft_living + grade + sqft_above_fit
+```
+
+
+
+
+```{r}
+# TODO: k-fold version
+set.seed(1)
+
+cv_folds <- cleaned %>% 
+  vfold_cv()
+  
+lm_model <- linear_reg() %>%
+  set_engine("lm")
+
+recipe <- recipe(price ~ bedrooms + bathrooms + sqft_living + sqft_lot + floors + view + condition + grade + yr_built, data = cleaned) %>%
+  step_normalize(all_numeric(), -all_outcomes())
+
+workflow <- workflow() %>%
+  add_model(lm_model) %>%
+  add_recipe(recipe)
+
+results <- workflow %>%
+  fit_resamples(cv_folds, metrics = metric_set(rmse, rsq))
+
+results %>% 
+  collect_metrics()
+
+results
+  
+```
+
+```{r}
+best_subset <- regsubsets(price ~ ., data = cleaned)
+summary(best_subset)$rsq
+summary(best_subset)
+
+forward <- regsubsets(price ~ ., data = cleaned, method = "forward")
+summary(forward)$rsq
+
+# backward <- regsubsets(price ~ ., data = cleaned, method = "backward")
+# summary(backward)$rsq
+```
+
+```{r, cache=TRUE}
+data_split <- initial_split(cleaned, prop = 0.7)
+training <- training(data_split)
+testing <- testing(data_split)
+# lin_mod <- lm(price ~ ., data = training)
+
+forest_mod <- randomForest(price ~ bedrooms + bathrooms + sqft_living + sqft_lot + floors + view + condition + grade + yr_built, data = training, importance = TRUE)
+
+predictions <- predict(forest_mod, newdata = testing)
+
+forest_metrics <- bind_cols(truth = testing$price, estimate = predictions)
+
+rmse(truth = truth, estimate = estimate, data = forest_metrics)
+rsq(truth = truth, estimate = estimate, data = forest_metrics)
+
+importance(forest_mod)
+
+forest_metrics %>% 
+  ggplot(aes(x = truth, y = estimate)) +
+  geom_point(color = "blue") + 
+  geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed", size = 1)
+```
+
+# Data Description
+
+### Filtering out the Data NOTE!!!! need to filter for lat and long in this data set up we are using here
+
+Dont normalize data set for the set up 
+
+```{r}
+
+# due to the nature of the renovation data in the past fifteen years we will exlclude those two points that have the updated affect on sqaure footage 
+data1 <- data
+
+nrow(data1)
+
+# since we are only looking at original housing data an not looking at renovation based we will factor out any home that has had a renovation
+data1 <- data1 %>%
+  filter(yr_renovated == 0)
+nrow(data1)
+data$yr_renovated <- NULL
+
+# Generic Filter function to handle any instances of missing data in the table, Removes any row that contains and instance of an NA
+if(any(is.na(data1)) == TRUE){
+  data <- na.omit(data1)
+}
+
+# Normalizing the data. We will select to normalize the data that is that follows continuous numerical set ups
+# HOF function used to call on all the variables
+normalize <- function(x){
+  return((x-min(x))/(max(x)-min(x)))
+}
+
+Data_with_normalize <- data1
+
+# Normalize all of the appropriate data (using a custom normalize function, if defined)
+normalize <- function(x) {
+  return((x - min(x)) / (max(x) - min(x)))  # min-max normalization
+}
+
+# Normalize all columns (Accept are dependent variable)
+
+Data_with_normalize$bedrooms <- normalize(Data_with_normalize$bedrooms)
+Data_with_normalize$bathrooms <- normalize(Data_with_normalize$bathrooms)
+Data_with_normalize$sqft_living <- normalize(Data_with_normalize$sqft_living)
+Data_with_normalize$sqft_lot <- normalize(Data_with_normalize$sqft_lot)
+Data_with_normalize$sqft_above <- normalize(Data_with_normalize$sqft_above)
+Data_with_normalize$sqft_basement <- normalize(Data_with_normalize$sqft_basement)
+Data_with_normalize$yr_built <- normalize(Data_with_normalize$yr_built)
+
+
+# Standardize (Z-score normalization) for all relevant columns
+
+Data_with_normalize$bedrooms <- scale(Data_with_normalize$bedrooms)
+Data_with_normalize$bathrooms <- scale(Data_with_normalize$bathrooms)
+Data_with_normalize$sqft_living <- scale(Data_with_normalize$sqft_living)
+Data_with_normalize$sqft_lot <- scale(Data_with_normalize$sqft_lot)
+Data_with_normalize$sqft_above <- scale(Data_with_normalize$sqft_above)
+Data_with_normalize$sqft_basement <- scale(Data_with_normalize$sqft_basement)
+Data_with_normalize$yr_built <- scale(Data_with_normalize$yr_built)
+
+
+# View the updated data table
+
+nrow(Data_with_normalize)
+# here what we can do is use the Z score and will keep data that is two standard deviations away in 95 percentile
+# look up double check proffessor with this approach
+Data_with_normalize <- Data_with_normalize %>%
+  mutate(
+    bedrooms_outlier = abs(bedrooms) > 2,
+    bathrooms_outlier = abs(bathrooms) > 2,
+    sqft_living_outlier = abs(sqft_living) > 2,
+    sqft_lot_outlier = abs(sqft_lot) > 2,
+    sqft_above_outlier = abs(sqft_above) > 2,
+    sqft_basement_outlier = abs(sqft_basement) > 2,
+    yr_built_outlier = abs(yr_built) > 2
+  ) %>%
+  filter(
+    !bedrooms_outlier & !bathrooms_outlier & 
+    !sqft_living_outlier & !sqft_lot_outlier & !sqft_above_outlier & 
+    !sqft_basement_outlier & !yr_built_outlier 
+  ) %>%
+  dplyr::select(-ends_with("_outlier"))
+
+# could also develop a regression lone and use cooks distance to filter out the variables
+
+
+# we successfully removed the outliers and all of our data is within  standard deviations of the data
+nrow(Data_with_normalize)
+
+# need to implement dummy columns for the numerical boolean based data we are using in the data set
+Data_with_normalize <- Data_with_normalize %>%
+  mutate(
+    view_yes = ifelse(view == 1, 1, 0),
+    view_no = ifelse(view == 0, 1, 0),
+    
+    waterfront_yes = ifelse(waterfront == 1, 1, 0), # need to filter out the outliers of the code here for the outliersin the lat and long
+    waterfront_no = ifelse(waterfront == 0, 1, 0)
+  ) %>%
+  dplyr::select(-view, -waterfront, -sqft_living15, -sqft_lot15, -yr_renovated) 
+# removing all the columns we wont use in the data
+# we are excluding renovations of homes in the models and adjusting booling values in this segments
+
+head(Data_with_normalize)
+
+# here what we will do is implement Cooks Distance. due to normal we use the value 3 in this instance
+
+
+# implement a plain box plot graph of the original data to see if it is filtered then show the new one
+
+# check the homoscedascity of the model(Constant Variance of Residuals) We need to make sure this is not violated as our model may produce bias results
+
+```
+
+
+
+# Analysis
+
+### Generating the First Main set up of our Multivariet Regression Model
+
+```{r}
+# implement and derive a regression model to be used
+# Data_with_normalize_s <- subset(Data_with_normalize, select = -c(id, attribute_0))
+# 
+# Multi_Reg_Model <- lm(price ~ ., data = Data_with_normalize_s)
+
+Multi_Reg_Model <- lm(price ~ ., data = Data_with_normalize)
+
+stepwise_model <- stepAIC(Multi_Reg_Model, direction = "backward", trace = 1)
+
+summary(stepwise_model)
+# from this we will remove the id variable and the sqft_above
+
+
+#no need for variables for the set up 
+```
+
+### Handling Multicollinearity 
+
+QUESTIONS TO ASK: HOW DO WE HANDLE THE BOOLEAN DATA IN THE SET WE ARE WORKING IN
+HOW DO WE IMPLEMENT THE MOST OPTIMAL SET AFTER FACTORING OUT FOR ANALYSIS
+IS THERE A MUCH BETTER ORDING AND SET UP FOR THE DATA WE ARE IMPLEMENTING
+
+```{r}
+# here we need to filter out our dummy/alias because they effect the VIF outcome so we will see other variables in the set up
+Data_with_normalize_subset <- subset(Data_with_normalize, select = -c(id, sqft_above, view_no, view_yes, waterfront_yes, waterfront_no, attribute_0))
+
+Multi_Reg_Model_Updated <- lm(price ~ ., data = Data_with_normalize_subset)
+
+vif(Multi_Reg_Model_Updated)
+
+```
+### Correlation Coefficient
+
+```{r}
+cor_matrix <- cor(Data_with_normalize_subset)
+print(cor_matrix)
+
+#single linear regression higly coordinated and see how it works
+```
+Highly correlated:
+- sqft_living and bathrooms (0.689)
+- sqft_living and grade (0.694)
+Seeing as Sqaure foot is the largest direct coorelation to house price and the quality of the house, bathroom is something we can remove from the data set and model again
+
+
+
+```{r}
+# we need to see how some of this individual data plays out in the set up to get the proprotions of the data
+# cor_matrix <- cor(Data_with_normalize_subset)
+# print(cor_matrix)
+
+# choose the set up for the variables as wee g and then see how it goes from there 
+
+cor_matrix <- cor(Data_with_normalize_subset)
+
+# Melt the matrix for ggplot
+melted_cor_matrix <- melt(cor_matrix)
+
+# Plot the heatmap
+ggplot(melted_cor_matrix, aes(Var1, Var2, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 0) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(title = "Correlation Matrix Heatmap", x = "Variables", y = "Variables", fill = "Correlation")
+
+```
+### Updating Regression Model with reduced Multicoliniearity and 
+```{r}
+Data_with_normalize_subset <- subset(Data_with_normalize, select = -c(id, sqft_above, attribute_0, grade))
+
+# Multi_Reg_Model_Updated <- lm(price ~ ., data = Data_with_normalize_subset)
+# 
+# summary(Multi_Reg_Model_Updated)
+
+Multi_Reg_Model_2 <- lm(price ~ ., data = Data_with_normalize_subset)
+
+stepwise_model <- stepAIC(Multi_Reg_Model_2, direction = "backward", trace = 1)
+
+summary(stepwise_model)
+
+```
+
+
+
+```{r}
+
+
+# Use the Repeated K-Fold Cross Validation in the model to determine the set up
+
+```
+
+### Define the Data sizes for the training and the testing sets
+
+```{r}
+
+```
+
+### Use the Diagonal plot (Show the regression model???)
+
+```{r}
+# implement the subset selection model (backward Stepwise Selection)
+
+
+
+```
+
+
+
+
+# Model Evaluation and Prediction
+
+### implement subset selection and all necassary test to verify the model that you get is the best model
+
+
+### Residual vs. fitted plot
+
+### durbin Watosn test help us determine if the predictors are independent and observied with negligable error
+
+### Residual errors have a mean value of zero
+
+### Residual errors have a constant variance
+
+### Residual errors are independent from each othere and redictos
+
+### prediction Interval
+
+### confidence Interval
+
+
+# Conlcusion and Summary
+
+
+
+
+# References 
+
+- reference 1 (data set)
+- reference 2
+- reference 3

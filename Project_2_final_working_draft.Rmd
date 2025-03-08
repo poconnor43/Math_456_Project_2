@@ -1,0 +1,207 @@
+---
+title: "Final_Working_Project_2"
+output: pdf_document
+date: "2025-03-07"
+---
+
+# Title
+### Preston O'Connor
+### 3/12/2025
+
+# Introduction
+# Note: We are modeling to see if there is a good multivariate regression model to predict the prices of the houses in Seatle 
+
+```{r}
+# Call this section of code to install all of the libraries on your device
+#install.packages(c("caret", "ggplot2", "MASS", "car", "dplyr", "tibble", "foreign","reshape2"))
+#Refernce Library calls to which data sets will be implemented and used
+
+# library(caret)
+library(tidyverse)
+library(tidymodels)
+library(leaps)
+# library(MASS)
+# library(car)
+library(foreign)
+library(GGally)
+library(corrr)
+# library(boot)
+library(randomForest)
+```
+
+
+# Data Description
+
+## Import working data set
+```{r}
+# load and display the data set we are working with
+data <- read.arff("house_sales_reduced.arff")
+View(data)
+```
+
+## Clean Data
+
+
+```{r}
+# filter out data outside of 3 standard deviations
+# Deletes the row with outlier
+cleaned <- data %>% 
+  select(-c(sqft_living15, sqft_lot15, id, attribute_0, lat, long, zipcode)) %>% 
+  filter(across(where(is.numeric), \(col) abs(col - mean(col)) <= 3 * sd(col)))
+```
+
+## Implement another helper for outlier filtering???
+
+
+
+# Analysis
+
+```{r}
+# generate correlation values with high significance
+cleaned %>% 
+  select(where(is.numeric)) %>%
+  correlate() %>% 
+  shave() %>% 
+  mutate(across(where(is.numeric), \(col) if_else(col < abs(0.5), NA, col)))
+```
+
+### Diagram showing the correspondance colored based weight Coloring
+
+### any areas were we may need to remove the variables due to high colinierization
+
+
+#### Useless part but needed looking into these variables and seeing if there is any possible influence
+
+
+
+### Choosing the regression model:
+
+```{r}
+ backward <- regsubsets(price ~ ., data = cleaned, method = "backward")
+ summary(backward)
+```
+### Generate the Regression Model
+
+```{r}
+selected_data <- cleaned %>%
+  select(bedrooms, bathrooms, sqft_living, floors, view, condition, grade, yr_built, price)
+
+final_model <- lm(price ~ bedrooms + bathrooms + sqft_living + floors + view + condition + grade + yr_built, data = selected_data)
+
+summary(final_model)
+
+```
+make sure to get a good latex prediction of the value here and showcase what our regression model looks like
+
+### K fold cross-validation
+
+```{r}
+cv_folds <- vfold_cv(selected_data, v = 10)
+
+# Define a linear regression model
+lr_model <- linear_reg() %>%
+  set_engine("lm")
+
+# Create a workflow
+workflow <- workflow() %>%
+  add_model(lr_model) %>%
+  add_formula(price ~ bedrooms + bathrooms + sqft_living + floors + view + condition + grade + yr_built)
+
+# Train the model with 10-fold CV and collect metrics for each fold
+results <- workflow %>%
+  fit_resamples(cv_folds, metrics = metric_set(rmse, rsq))
+
+# Extract and display metrics for each fold
+metrics_per_fold <- collect_metrics(results)
+
+metrics_per_fold
+```
+### Averaged outcome of R-Squaured and MSE
+
+```{r}
+avg_metrics <- metrics_per_fold %>%
+  group_by(.metric) %>%
+  summarize(mean_value = mean(mean, na.rm = TRUE))
+
+avg_metrics
+
+# Train final model on full dataset
+final_model <- lm(price ~ bedrooms + bathrooms + sqft_living + floors + view + condition + grade + yr_built, 
+                  data = selected_data)
+
+# Make predictions on the full dataset
+predictions <- predict(final_model, newdata = selected_data)
+
+# Add predictions to the dataset
+results_df <- selected_data %>%
+  mutate(predicted_price = predictions)
+
+# View the first few rows
+head(results_df)
+```
+
+
+### Q- Q Plot
+
+```{r}
+
+```
+
+
+# Model Evalution and Prediction
+
+### F-test
+```{r}
+
+```
+
+
+### R-sqaured
+```{r}
+
+```
+
+
+### RMS
+
+```{r}
+
+```
+
+### MSE
+
+```{r}
+
+```
+
+### normaization of the model comparison
+
+```{r}
+
+```
+
+
+### best subset 
+
+```{r}
+best_subset <- regsubsets(price ~ ., data = cleaned)
+summary(best_subset)
+```
+
+
+### Residuals graph
+
+```{r}
+
+```
+
+### Predicted Values vs. True Values 
+
+```{r}
+
+```
+
+
+# References
+
+- OpenML Link (where we imported the data set)
