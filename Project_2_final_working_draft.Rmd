@@ -16,17 +16,18 @@ date: "2025-03-07"
 #install.packages(c("caret", "ggplot2", "MASS", "car", "dplyr", "tibble", "foreign","reshape2"))
 #Refernce Library calls to which data sets will be implemented and used
 
-# library(caret)
+library(caret)
 library(tidyverse)
 library(tidymodels)
 library(leaps)
-# library(MASS)
+library(car)  # for the VIF Model
+library(dplyr)
+library(MASS) # used for the stepwise function and see how the data is being implemented
 # library(car)
-library(foreign)
+library(foreign) # used to read the arff file
 library(GGally)
 library(corrr)
-# library(boot)
-library(randomForest)
+library(ggplot2)
 ```
 
 
@@ -36,7 +37,7 @@ library(randomForest)
 ```{r}
 # load and display the data set we are working with
 data <- read.arff("house_sales_reduced.arff")
-View(data)
+head(data)
 ```
 
 ## Clean Data
@@ -44,134 +45,390 @@ View(data)
 
 ```{r}
 # filter out data outside of 3 standard deviations
+# come back here to see if we want to remove the waterfront and View booleans
 # Deletes the row with outlier
+
 cleaned <- data %>% 
-  select(-c(sqft_living15, sqft_lot15, id, attribute_0, lat, long, zipcode)) %>% 
-  filter(across(where(is.numeric), \(col) abs(col - mean(col)) <= 3 * sd(col)))
+  dplyr::select(-sqft_living15, -sqft_lot15, -id, -attribute_0, -lat, -long, -zipcode) %>% 
+  filter(across(where(is.numeric), ~ abs(. - mean(.)) <= 3 * sd(.))) # originally was 3
+head(cleaned)
 ```
 
 ## Implement another helper for outlier filtering???
 
+```{r}
 
+multi_reg_model <- lm(price ~ ., data = cleaned)  
+
+stepwise_model <- stepAIC(multi_reg_model, direction = "backward", trace = FALSE)
+
+summary(stepwise_model)
+vif(stepwise_model) # delete
+```
+
+# end of research and messing around data
 
 # Analysis
 
+### Selecting Variables for the Multivariate Regression Model
 ```{r}
-# generate correlation values with high significance
-cleaned %>% 
-  select(where(is.numeric)) %>%
-  correlate() %>% 
-  shave() %>% 
-  mutate(across(where(is.numeric), \(col) if_else(col < abs(0.5), NA, col)))
+multi_reg_model <- lm(price ~ ., data = cleaned)  
+
+stepwise_model <- stepAIC(multi_reg_model, direction = "backward", trace = FALSE)
+
+summary(stepwise_model)
+vif(stepwise_model) # delete
 ```
 
-### Diagram showing the correspondance colored based weight Coloring
-
-### any areas were we may need to remove the variables due to high colinierization
-
-
-#### Useless part but needed looking into these variables and seeing if there is any possible influence
-
-
-
-### Choosing the regression model:
-
+### Outline Potential Model Issues
 ```{r}
- backward <- regsubsets(price ~ ., data = cleaned, method = "backward")
- summary(backward)
+par(mfrow = c(2, 2))
+plot(multi_reg_model)
 ```
-### Generate the Regression Model
+Most of our value should sit inbetween the 3 and the negative 3
+
+### Implementing Cook's Distance to find outlier points
 
 ```{r}
-selected_data <- cleaned %>%
-  select(bedrooms, bathrooms, sqft_living, floors, view, condition, grade, yr_built, price)
+cooks_d <- cooks.distance(stepwise_model)
 
-final_model <- lm(price ~ bedrooms + bathrooms + sqft_living + floors + view + condition + grade + yr_built, data = selected_data)
+# Number of observations
+n <- length(cooks_d)
+threshold <- 4 / n  # Common threshold for identifying outliers
 
-summary(final_model)
+# Identify outliers based on Cook's Distance threshold
+outliers <- which(cooks_d > threshold)
+
+# Retrieve only the outlier data rows from the cleaned dataset
+outlier_data <- cleaned[outliers, ]
+
+# Create a summary of the outliers with their Cook's Distance values
+outliers_summary <- data.frame(Cook_Distance = cooks_d[outliers], outlier_data)
+
+# Count the number of outliers
+outlier_count <- length(outliers)
+
+# Print out the count of outliers
+cat("Number of outliers found:", outlier_count, "\n")
+
+view(outliers_summary)
+nrow(outliers_summary)
+# Print the outlier summary
+# print(outliers_summary)
+```
+#### Cook's Distance to Find influential points
+
+```{r}
+cooksD <- cooks.distance(stepwise_model)
+plot(cooksD,type="b",pch=18,col="red")
+influential <- cooksD[(cooksD > (3 * mean(cooksD, na.rm = TRUE)))]
+```
+Take note of the number of outliers in the cook's distance model we are implementing
+
+
+#### Identify and Remove Influential Points
+
+```{r}
+# Define a threshold for influential points
+threshold <- 3 * mean(cooksD, na.rm = TRUE)
+
+# Identify influential points
+influential <- which(cooksD > threshold)
+
+cleaned_without_influential <- cleaned[-influential, ]
 
 ```
-make sure to get a good latex prediction of the value here and showcase what our regression model looks like
 
-### K fold cross-validation
+#### Refited Model Minus Outliers
 
 ```{r}
-cv_folds <- vfold_cv(selected_data, v = 10)
+model2 <- lm(price ~ sqft_living + bathrooms + grade + floors + view + condition + yr_built, data = cleaned_without_influential)
 
-# Define a linear regression model
-lr_model <- linear_reg() %>%
-  set_engine("lm")
-
-# Create a workflow
-workflow <- workflow() %>%
-  add_model(lr_model) %>%
-  add_formula(price ~ bedrooms + bathrooms + sqft_living + floors + view + condition + grade + yr_built)
-
-# Train the model with 10-fold CV and collect metrics for each fold
-results <- workflow %>%
-  fit_resamples(cv_folds, metrics = metric_set(rmse, rsq))
-
-# Extract and display metrics for each fold
-metrics_per_fold <- collect_metrics(results)
-
-metrics_per_fold
+summary(model2)
 ```
-### Averaged outcome of R-Squaured and MSE
+#### Updated new Diagnositc Plot
 
 ```{r}
-avg_metrics <- metrics_per_fold %>%
-  group_by(.metric) %>%
-  summarize(mean_value = mean(mean, na.rm = TRUE))
-
-avg_metrics
-
-# Train final model on full dataset
-final_model <- lm(price ~ bedrooms + bathrooms + sqft_living + floors + view + condition + grade + yr_built, 
-                  data = selected_data)
-
-# Make predictions on the full dataset
-predictions <- predict(final_model, newdata = selected_data)
-
-# Add predictions to the dataset
-results_df <- selected_data %>%
-  mutate(predicted_price = predictions)
-
-# View the first few rows
-head(results_df)
+par(mfrow = c(2, 2))
+plot(model2)
 ```
 
 
-### Q- Q Plot
+
+### Variance Inflation Factor
 
 ```{r}
+vif(stepwise_model)
+```
+- There are High VIFs with sqft_living and sqft_above, which both have a VIFs that are higher than 5. therefore there is some degree of clolinearity between these variables. Below in the collinearity, the two variables are highly correlated with each other at 0.86. which may inturn be causing multicolinearity in the model.
+
+- bathrooms and floors also have a colinearity greater then 2, meaning we have a moderate multicollinearity. However, they are not as big of a concern as the previous
+
+
+
+### Colinearity 
+
+```{r}
+cleaned_without_influential %>% 
+  dplyr::select(price, bedrooms, bathrooms, sqft_living, sqft_lot, floors, view, condition, grade, sqft_above, yr_built) %>% 
+  cor() %>% 
+  round(2)
+```
+- From here we see that there are strong correlations between sqft_living and sqft_above (0.86), sqft_living and bathrooms(0.71), and sqft_living and grade(0.72). Given that sqft_living has the highest VIF, it is likely driving much of the collinearity in the model.
+
+### Removal of sqft_living on the Model
+
+```{r}
+model <- lm(price ~ sqft_above + bathrooms + grade + floors + view + condition + yr_built, data = cleaned_without_influential)
+summary(model)
+vif(model)
+```
+
+
+### Removal of sqft_above on the Model
+
+```{r}
+final_regression_model <- lm(price ~ sqft_living + grade + bathrooms+ floors + view + condition + yr_built, data = cleaned_without_influential)
+summary(final_regression_model )
+vif(final_regression_model )
+```
+- From an hand out from the Northwoods Realtors, the sqaure footage of the home's living space is an area that includes all finished, heated areas across all florrs, encompassing the secong floor if it meets this criteria. Given the criteria of sqft_living encompasses the above_sqft due to Washington and Seatle building, and the adjusted R-sqaure only having a minor decrease in the original Adjusted R Sqaured its safe to remove the columns and continue the models
+
+### F-test
+
+```{r}
+results <- anova(final_regression_model)
+print(results)
+```
+We remove "floors" because its p-value of 0.044 indicates low statistical significance, and its F-value of roughly 4.05 shows it adds little explanatory power to the model. Removing it results in a minor drop in adjusted R-squared (from 0.6338 to 0.6243), which suggests that the model becomes slightly less predictive but simpler overall, making the trade-off worthwhile as the loss in accuracy is minimal.
+
+### The Final Regression model
+
+```{r}
+final_regression_model <- lm(price ~ sqft_living + grade + bathrooms+ view + condition + yr_built, data = cleaned_without_influential)
+summary(final_regression_model )
+vif(final_regression_model )
+```
+
+
+
+
+Question(Did we ever go over using Ridge and Lasso in Regression models)
+
+### Repeated K fold cross-validation
+
+```{r}
+set.seed(125)
+
+train_control <- trainControl(method = "repeatedcv", 
+                               number = 10,       # Number of folds (K)
+                               repeats = 3)       # Number of repetitions
+
+model <- train(price ~ sqft_living + bathrooms + grade + view
+               + condition + yr_built, 
+               data = cleaned_without_influential, 
+               method = "lm", 
+               trControl = train_control)
+
+final_model <- model$finalModel       
+residuals_final <- residuals(final_model)
+
+print(model)
+```
+
+
+
+### Q-Q Residuals 
+
+```{r}
+# Create Q-Q plot of the residuals
+qqnorm(residuals_final)                  
+qqline(residuals_final, col = "red")    
+```
+
+# Ridge Regression evaluation of the Model
+
+```{r}
+# Normalizing the data set
+X <- cleaned_without_influential[, c("bedrooms", "bathrooms", "sqft_living", "sqft_lot", 
+                                     "floors", "view", "condition", "grade", "sqft_above", "yr_built")]
+Y <- cleaned_without_influential$price
+
+set.seed(1)  # For reproducibility
+trainIndex <- createDataPartition(Y, p = 0.7, list = FALSE)
+
+# Split data
+X_train <- X[trainIndex, ]
+X_test  <- X[-trainIndex, ]
+Y_train <- Y[trainIndex]
+Y_test  <- Y[-trainIndex]
+
+cols_to_scale <- c("sqft_living", "sqft_lot", "sqft_above", "yr_built")
+
+# Standardize only relevant columns
+preProc <- preProcess(X_train[, cols_to_scale], method = c("center", "scale"))
+X_train[, cols_to_scale] <- predict(preProc, X_train[, cols_to_scale])
+X_test[, cols_to_scale] <- predict(preProc, X_test[, cols_to_scale])
+
+#into a matrix format
+X_train_mat <- as.matrix(X_train)
+X_test_mat  <- as.matrix(X_test)
+
+lambdas <- 10^seq(2, -3, by = -0.1)
+
+# Train Ridge Regression with Cross-Validation to find the best lambda
+ridge_cv <- cv.glmnet(X_train_mat, Y_train, alpha = 0, lambda = lambdas)
+
+# Get the best lambda
+best_lambda_ridge <- ridge_cv$lambda.min
+
+# Train Ridge Regression with the best lambda
+ridge_model <- glmnet(X_train_mat, Y_train, alpha = 0, lambda = best_lambda_ridge)
 
 ```
+
+## Model Predictions and Evalueation
+```{r}
+ridge_preds_train <- predict(ridge_model, newx = X_train_mat)
+ridge_preds_test  <- predict(ridge_model, newx = X_test_mat)
+
+```
+
+## Ridge Regression Model
+
+```{r}
+eval_metrics <- function(y_true, y_pred) {
+  SSE <- sum((y_pred - y_true)^2)
+  SST <- sum((y_true - mean(y_true))^2)
+  
+  r2 <- 1 - SSE / SST
+  RMSE <- sqrt(mean((y_pred - y_true)^2))
+  
+  return(list(RMSE = RMSE, R2 = r2))
+}
+
+# Evaluate Ridge Model
+ridge_train_results <- eval_metrics(Y_train, ridge_preds_train)
+ridge_test_results <- eval_metrics(Y_test, ridge_preds_test)
+
+print(paste("Ridge Regression - Train RMSE:", ridge_train_results$RMSE, "R²:", ridge_train_results$R2))
+print(paste("Ridge Regression - Test RMSE:", ridge_test_results$RMSE, "R²:", ridge_test_results$R2))
+
+```
+
+## Ridge Coefficients
+```{r}
+ridge_coeffs <- coef(ridge_model)
+ridge_df <- data.frame(Feature = rownames(ridge_coeffs), Coefficient = as.vector(ridge_coeffs))
+
+# Display only important (nonzero) coefficients
+ridge_df <- ridge_df[ridge_df$Coefficient != 0, ]
+print(ridge_df)
+```
+
+
+## Model Visual of Ridge Regression
+```{r}
+plot(Y_test, ridge_preds_test, main = "Actual vs. Predicted Prices (Ridge Regression)",
+     xlab = "Actual Prices", ylab = "Predicted Prices", col = "blue", pch = 16)
+abline(0, 1, col = "red", lwd = 2)
+```
+
+
+
+## Lasso Regression Evaluation
+
+```{r}
+# Define lambda sequence for regularization
+lambdas <- 10^seq(2, -3, by = -0.1)
+
+# Train Lasso Regression with Cross-Validation to find best lambda
+lasso_cv <- cv.glmnet(X_train_mat, Y_train, alpha = 1, lambda = lambdas)
+
+# Get the best lambda
+best_lambda_lasso <- lasso_cv$lambda.min
+
+# Train final Lasso model with best lambda
+lasso_model <- glmnet(X_train_mat, Y_train, alpha = 1, lambda = best_lambda_lasso)
+
+# predict
+
+lasso_preds_train <- predict(lasso_model, newx = X_train_mat)
+lasso_preds_test  <- predict(lasso_model, newx = X_test_mat)
+
+eval_metrics <- function(y_true, y_pred) {
+  SSE <- sum((y_pred - y_true)^2)
+  SST <- sum((y_true - mean(y_true))^2)
+  
+  r2 <- 1 - SSE / SST
+  RMSE <- sqrt(mean((y_pred - y_true)^2))
+  
+  return(list(RMSE = RMSE, R2 = r2))
+}
+
+# Evaluate Lasso Model
+lasso_train_results <- eval_metrics(Y_train, lasso_preds_train)
+lasso_test_results <- eval_metrics(Y_test, lasso_preds_test)
+
+print(paste("Lasso Regression - Train RMSE:", lasso_train_results$RMSE, "R²:", lasso_train_results$R2))
+print(paste("Lasso Regression - Test RMSE:", lasso_test_results$RMSE, "R²:", lasso_test_results$R2))
+
+```
+## Lasso Coeficients 
+
+```{r}
+lasso_coeffs <- coef(lasso_model)
+lasso_df <- data.frame(Feature = rownames(lasso_coeffs), Coefficient = as.vector(lasso_coeffs))
+
+# Show only important (nonzero) coefficients
+lasso_df <- lasso_df[lasso_df$Coefficient != 0, ]
+print(lasso_df)
+```
+
+## Lasso Model
+
+```{r}
+plot(Y_test, lasso_preds_test, main = "Actual vs. Predicted Prices (Lasso Regression)",
+     xlab = "Actual Prices", ylab = "Predicted Prices", col = "blue", pch = 16)
+abline(0, 1, col = "red", lwd = 2)
+```
+## Lasso Coefficients Shrinkage
+```{r}
+plot(lasso_model, xvar = "lambda", label = TRUE)
+```
+# Conclusion of which is the best model to implement
 
 
 # Model Evalution and Prediction
 
 ### F-test
 ```{r}
-
+results <- anova(final_regression_model)
+print(results)
 ```
 
 
 ### R-sqaured
 ```{r}
-
+summary(final_regression_model)
 ```
 
 
-### RMS
+### RMSE
 
 ```{r}
+residuals_model <- residuals(model)
 
+# Calculate RMSE
+rmse_value <- sqrt(mean(residuals_model^2))
+print(paste("RMSE: ", rmse_value))
 ```
 
 ### MSE
 
 ```{r}
-
+mse_value <- mean(residuals_model^2)
+print(paste("MSE: ", mse_value))
 ```
 
 ### normaization of the model comparison
@@ -184,16 +441,78 @@ head(results_df)
 ### best subset 
 
 ```{r}
-best_subset <- regsubsets(price ~ ., data = cleaned)
-summary(best_subset)
+best_subset <- regsubsets(price ~ sqft_living + bathrooms + grade + floors + view + condition + yr_built, data = cleaned_without_influential)
+
+
+best_subset_summary <- summary(best_subset)
+
+
+best_model_size <- which.max(best_subset_summary$adjr2)  # Model size with highest Adjusted R-Squared
+
+# Extract the best set of predictors from the selected model
+best_predictors <- names(coef(best_subset, best_model_size))[-1]  # Remove the intercept
+
+# Create the formula for the final model with the selected predictors
+formula <- as.formula(paste("price ~", paste(best_predictors, collapse = " + ")))
+
+# Fit the final linear model
+final_model <- lm(formula, data = cleaned_without_influential)
+
+
+cat("Model Summary:\n")
+summary(final_model)
+
+
+cat("\nVariance Inflation Factor (VIF):\n")
+vif(final_model)
 ```
 
 
 ### Residuals graph
+#### there is a linear relationship between the predictos and the price
+
+there are going to be multiple of these set ups and values here so we need to look at the data a bit more closely
+
+#### Predictors are independent and obsered with negligable error
 
 ```{r}
+cor_matrix <- cor(cleaned_without_influential %>% 
+  dplyr::select(sqft_living, bathrooms, grade, floors, view, condition, yr_built))
+print(cor_matrix)
 
 ```
+
+```{r}
+model <- lm(price ~ sqft_living + bathrooms + grade + floors + view + condition + yr_built, data = cleaned_without_influential)
+vif(model)
+```
+
+#### Residuals Errors have a Mean Value of Zero
+
+```{r}
+model <- lm(price ~ sqft_living + bathrooms + grade + floors + view + condition + yr_built, data = cleaned_without_influential)
+
+# Step 2: Get residuals from the model
+residuals <- model$residuals
+
+# Step 3: Plot residuals vs fitted values
+plot(model$fitted.values, residuals, 
+     main = "Residuals vs Fitted Values", 
+     xlab = "Fitted Values", 
+     ylab = "Residuals", 
+     pch = 19, col = "blue")  # Customize points for clarity
+abline(h = 0, col = "red")
+```
+```{r}
+mean_residuals <- mean(residuals)
+print(paste("Mean of residuals: ", mean_residuals))
+```
+
+
+#### Residual Errors have a constant variance
+
+#### Residual Errors are independent from eachother and predictors
+
 
 ### Predicted Values vs. True Values 
 
@@ -205,3 +524,6 @@ summary(best_subset)
 # References
 
 - OpenML Link (where we imported the data set)
+-We also could download and see how everything looks for the data 
+https://www.openml.org/search?type=data&status=active&id=42635
+- https://www.northwoodsrealtors.org/SquareFtg0609.pdf article on how sqaure footage is used in seattle and washington
