@@ -5,14 +5,17 @@ date: "2025-03-07"
 ---
 
 # Title
-### Preston O'Connor
+
+### Preston O'Connor, Khoa Dao
+
 ### 3/12/2025
 
 # Introduction
-# Note: We are modeling to see if there is a good multivariate regression model to predict the prices of the houses in Seatle 
+
+# Note: We are modeling to see if there is a good multivariate regression model to predict the prices of the houses in Seatle
 
 ```{r}
-# Call this section of code to install all of the libraries on your device
+#Call this section of code to install all of the libraries on your device
 #install.packages(c("caret", "ggplot2", "MASS", "car", "dplyr", "tibble", "foreign","reshape2"))
 #Refernce Library calls to which data sets will be implemented and used
 
@@ -23,17 +26,76 @@ library(leaps)
 library(car)  # for the VIF Model
 library(dplyr)
 library(MASS) # used for the stepwise function and see how the data is being implemented
-# library(car)
+library(glmnet)
 library(foreign) # used to read the arff file
 library(GGally)
 library(corrr)
 library(ggplot2)
+library(ggcorrplot)
 ```
-
 
 # Data Description
 
+## Data Resource
+
+The dataset used in this study is the "House Sales in King County, USA" dataset, obtained from <https://www.openml.org/search?type=data&status=active&id=42635&sort=runs>. It contains detailed information about house sales in King County, Washington, between May 2014 and May 2015.
+
+## Data Structure
+
+The dataset consists of 21,613 rows and 21 columns, including the target variable (price) and several predictive features.
+
+## Variables Description
+
+The dataset includes the following key variables:
+
+**Dependent Variable** (Target Variable):
+
+-   `price` (*Numeric*): The price at which the house was sold (in USD).
+
+**Independent Variables** (Predictors):
+
+-   `id` (*Categorical*): A unique identifier for each house.
+
+-   `date` (*Date*): The date the house was sold.
+
+-   `bedrooms` (*Numeric*): Number of bedrooms in the house.
+
+-   `bathrooms` (*Numeric*): Number of bathrooms (includes fractional values for half-bathrooms).
+
+-   `sqft_living` (*Numeric*): The total square footage of living space.
+
+-   `sqft_lot` (*Numeric*): The total square footage of the lot.
+
+-   `floors` (*Numeric*): The number of floors in the house.
+
+-   `waterfront` (*Binary*): Whether the house has a waterfront view (`1 = yes`, `0 = no`).
+
+-   `view` (*Ordinal*): A rating of the house’s view (`0` to `4`).
+
+-   `condition` (*Ordinal*): The overall condition of the house (`1` to `5`).
+
+-   `grade` (*Ordinal*): The quality of construction and design (`1` to `13`).
+
+-   `sqft_above` (*Numeric*): Square footage of house excluding basement.
+
+-   `sqft_basement` (*Numeric*): Square footage of the basement.
+
+-   `yr_built` (*Numeric*): The year the house was built.
+
+-   `yr_renovated` (*Numeric*): The year of the last renovation (`0` if never renovated).
+
+-   `zipcode` (*Categorical*): The ZIP code of the house.
+
+-   `lat` (*Numeric*): The latitude of the house.
+
+-   `long` (*Numeric*): The longitude of the house.
+
+-   `sqft_living15` (*Numeric*): Average square footage of living space of the 15 closest houses.
+
+-   `sqft_lot15` (*Numeric*): Average square footage of lots of the 15 closest houses.
+
 ## Import working data set
+
 ```{r}
 # load and display the data set we are working with
 data <- read.arff("house_sales_reduced.arff")
@@ -42,6 +104,7 @@ head(data)
 
 ## Clean Data
 
+### Remove outliers that are outside 3 standard deviation
 
 ```{r}
 # filter out data outside of 3 standard deviations
@@ -50,15 +113,54 @@ head(data)
 
 cleaned <- data %>% 
   dplyr::select(-sqft_living15, -sqft_lot15, -id, -attribute_0, -lat, -long, -zipcode) %>% 
+  mutate(ln_price = log(price)) %>%
   filter(across(where(is.numeric), ~ abs(. - mean(.)) <= 3 * sd(.))) # originally was 3
 head(cleaned)
 ```
+
+## Data Visualization 
+
+### Histogram of house price
+```{r}
+ggplot(cleaned, aes(x = price)) +
+  geom_histogram(fill = "blue", bins = 30) +
+  theme_minimal() +
+  ggtitle("Distribution of House Prices")
+```
+
+### Histogram of ln(house price)
+```{r}
+ggplot(cleaned, aes(x = ln_price)) +
+  geom_histogram(fill = "blue", bins = 30) +
+  theme_minimal() +
+  ggtitle("Distribution of House Prices")
+```
+
+The original histogram of house prices is right-skewed, meaning most homes have lower prices, while a few expensive houses create a long right tail. This skewness violates normality assumptions. Taking the log transformation makes it more symmetric and reduces the influence of extreme high-priced houses, which improves model interpretability and accuracy.
+### Boxplot of ln(house price)
+```{r}
+boxplot(cleaned$ln_price, main = "Boxplot of House Prices", col = "blue", ylab = "ln_price")
+```
+
+### Correlation heatmap 
+```{r}
+zero_variance_vars <- nearZeroVar(cleaned, saveMetrics = TRUE)
+print(zero_variance_vars)
+
+# Drop near-zero variance and zero-variance variables to draw correlation matrix
+cleaned_filtered <- cleaned %>%
+  dplyr::select(-waterfront, -yr_renovated, -sqft_basement, -view, -price)
+
+cor_matrix <- cor(cleaned_filtered %>% select_if(is.numeric))
+ggcorrplot::ggcorrplot(cor_matrix, hc.order = TRUE, type = "lower", lab = TRUE)
+```
+
 
 ## Implement another helper for outlier filtering???
 
 ```{r}
 
-multi_reg_model <- lm(price ~ ., data = cleaned)  
+multi_reg_model <- lm(ln_price ~ . -price, data = cleaned)  
 
 stepwise_model <- stepAIC(multi_reg_model, direction = "backward", trace = FALSE)
 
@@ -71,8 +173,9 @@ vif(stepwise_model) # delete
 # Analysis
 
 ### Selecting Variables for the Multivariate Regression Model
+
 ```{r}
-multi_reg_model <- lm(price ~ ., data = cleaned)  
+multi_reg_model <- lm(ln_price ~ . -price, data = cleaned)  
 
 stepwise_model <- stepAIC(multi_reg_model, direction = "backward", trace = FALSE)
 
@@ -81,11 +184,13 @@ vif(stepwise_model) # delete
 ```
 
 ### Outline Potential Model Issues
+
 ```{r}
 par(mfrow = c(2, 2))
 plot(multi_reg_model)
 ```
-Most of our value should sit inbetween the 3 and the negative 3
+
+Most of our value should sit in between the 3 and the negative 3
 
 ### Implementing Cook's Distance to find outlier points
 
@@ -116,6 +221,7 @@ nrow(outliers_summary)
 # Print the outlier summary
 # print(outliers_summary)
 ```
+
 #### Cook's Distance to Find influential points
 
 ```{r}
@@ -123,8 +229,8 @@ cooksD <- cooks.distance(stepwise_model)
 plot(cooksD,type="b",pch=18,col="red")
 influential <- cooksD[(cooksD > (3 * mean(cooksD, na.rm = TRUE)))]
 ```
-Take note of the number of outliers in the cook's distance model we are implementing
 
+Take note of the number of outliers in the cook's distance model we are implementing
 
 #### Identify and Remove Influential Points
 
@@ -142,10 +248,11 @@ cleaned_without_influential <- cleaned[-influential, ]
 #### Refited Model Minus Outliers
 
 ```{r}
-model2 <- lm(price ~ sqft_living + bathrooms + grade + floors + view + condition + yr_built, data = cleaned_without_influential)
+model2 <- lm(ln_price ~ sqft_living + bathrooms + grade + floors + view + condition + yr_built, data = cleaned_without_influential)
 
 summary(model2)
 ```
+
 #### Updated new Diagnositc Plot
 
 ```{r}
@@ -153,46 +260,44 @@ par(mfrow = c(2, 2))
 plot(model2)
 ```
 
-
-
 ### Variance Inflation Factor
 
 ```{r}
 vif(stepwise_model)
 ```
-- There are High VIFs with sqft_living and sqft_above, which both have a VIFs that are higher than 5. therefore there is some degree of clolinearity between these variables. Below in the collinearity, the two variables are highly correlated with each other at 0.86. which may inturn be causing multicolinearity in the model.
 
-- bathrooms and floors also have a colinearity greater then 2, meaning we have a moderate multicollinearity. However, they are not as big of a concern as the previous
+-   There are High VIFs with `sqft_living` and `sqft_above`, which both have a VIFs that are higher than 5. Therefore, there is some degree of clolinearity between these variables. Below in the collinearity, the two variables are highly correlated with each other at 0.86. which may inturn be causing multicolinearity in the model.
 
+-   `bathrooms` and `floors` also have a colinearity greater then 2, meaning we have a moderate multicollinearity. However, they are not as big of a concern as the previous
 
-
-### Colinearity 
+### Colinearity
 
 ```{r}
 cleaned_without_influential %>% 
-  dplyr::select(price, bedrooms, bathrooms, sqft_living, sqft_lot, floors, view, condition, grade, sqft_above, yr_built) %>% 
+  dplyr::select(ln_price, bedrooms, bathrooms, sqft_living, sqft_lot, floors, view, condition, grade, sqft_above, yr_built) %>% 
   cor() %>% 
   round(2)
 ```
-- From here we see that there are strong correlations between sqft_living and sqft_above (0.86), sqft_living and bathrooms(0.71), and sqft_living and grade(0.72). Given that sqft_living has the highest VIF, it is likely driving much of the collinearity in the model.
 
-### Removal of sqft_living on the Model
+-   From here we see that there are strong correlations between sqft_living and sqft_above (0.86), sqft_living and bathrooms(0.71), and sqft_living and grade(0.72). Given that sqft_living has the highest VIF, it is likely driving much of the collinearity in the model.
+
+### Removal of `sqft_living` on the Model
 
 ```{r}
-model <- lm(price ~ sqft_above + bathrooms + grade + floors + view + condition + yr_built, data = cleaned_without_influential)
+model <- lm(ln_price ~ sqft_above + bathrooms + grade + floors + view + condition + yr_built, data = cleaned_without_influential)
 summary(model)
 vif(model)
 ```
 
-
-### Removal of sqft_above on the Model
+### Removal of `sqft_above` on the Model
 
 ```{r}
-final_regression_model <- lm(price ~ sqft_living + grade + bathrooms+ floors + view + condition + yr_built, data = cleaned_without_influential)
+final_regression_model <- lm(ln_price ~ sqft_living + grade + bathrooms+ floors + view + condition + yr_built, data = cleaned_without_influential)
 summary(final_regression_model )
 vif(final_regression_model )
 ```
-- From an hand out from the Northwoods Realtors, the sqaure footage of the home's living space is an area that includes all finished, heated areas across all florrs, encompassing the secong floor if it meets this criteria. Given the criteria of sqft_living encompasses the above_sqft due to Washington and Seatle building, and the adjusted R-sqaure only having a minor decrease in the original Adjusted R Sqaured its safe to remove the columns and continue the models
+
+-   From an hand out from the Northwoods Realtors, the square footage of the home's living space is an area that includes all finished, heated areas across all floors, encompassing the second floor if it meets this criteria. Given the criteria of `sqft_living` encompasses the `above_sqft` due to Washington and Seatle building, and the adjusted R-sqaure only having a minor decrease in the original Adjusted R Sqaured its safe to remove the columns and continue the models
 
 ### F-test
 
@@ -200,18 +305,16 @@ vif(final_regression_model )
 results <- anova(final_regression_model)
 print(results)
 ```
-We remove "floors" because its p-value of 0.044 indicates low statistical significance, and its F-value of roughly 4.05 shows it adds little explanatory power to the model. Removing it results in a minor drop in adjusted R-squared (from 0.6338 to 0.6243), which suggests that the model becomes slightly less predictive but simpler overall, making the trade-off worthwhile as the loss in accuracy is minimal.
+
+We remove `floors` because its p-value of 0.044 indicates low statistical significance, and its F-value of roughly 4.05 shows it adds little explanatory power to the model. Removing it results in a minor drop in adjusted R-squared (from 0.6338 to 0.6243), which suggests that the model becomes slightly less predictive but simpler overall, making the trade-off worthwhile as the loss in accuracy is minimal.
 
 ### The Final Regression model
 
 ```{r}
-final_regression_model <- lm(price ~ sqft_living + grade + bathrooms+ view + condition + yr_built, data = cleaned_without_influential)
+final_regression_model <- lm(ln_price ~ sqft_living + grade + bathrooms+ view + condition + yr_built, data = cleaned_without_influential)
 summary(final_regression_model )
 vif(final_regression_model )
 ```
-
-
-
 
 Question(Did we ever go over using Ridge and Lasso in Regression models)
 
@@ -224,7 +327,7 @@ train_control <- trainControl(method = "repeatedcv",
                                number = 10,       # Number of folds (K)
                                repeats = 3)       # Number of repetitions
 
-model <- train(price ~ sqft_living + bathrooms + grade + view
+model <- train(ln_price ~ sqft_living + bathrooms + grade + view
                + condition + yr_built, 
                data = cleaned_without_influential, 
                method = "lm", 
@@ -236,9 +339,7 @@ residuals_final <- residuals(final_model)
 print(model)
 ```
 
-
-
-### Q-Q Residuals 
+### Q-Q Residuals
 
 ```{r}
 # Create Q-Q plot of the residuals
@@ -252,7 +353,7 @@ qqline(residuals_final, col = "red")
 # Normalizing the data set
 X <- cleaned_without_influential[, c("bedrooms", "bathrooms", "sqft_living", "sqft_lot", 
                                      "floors", "view", "condition", "grade", "sqft_above", "yr_built")]
-Y <- cleaned_without_influential$price
+Y <- cleaned_without_influential$ln_price
 
 set.seed(1)  # For reproducibility
 trainIndex <- createDataPartition(Y, p = 0.7, list = FALSE)
@@ -288,6 +389,7 @@ ridge_model <- glmnet(X_train_mat, Y_train, alpha = 0, lambda = best_lambda_ridg
 ```
 
 ## Model Predictions and Evalueation
+
 ```{r}
 ridge_preds_train <- predict(ridge_model, newx = X_train_mat)
 ridge_preds_test  <- predict(ridge_model, newx = X_test_mat)
@@ -317,6 +419,7 @@ print(paste("Ridge Regression - Test RMSE:", ridge_test_results$RMSE, "R²:", ri
 ```
 
 ## Ridge Coefficients
+
 ```{r}
 ridge_coeffs <- coef(ridge_model)
 ridge_df <- data.frame(Feature = rownames(ridge_coeffs), Coefficient = as.vector(ridge_coeffs))
@@ -326,15 +429,13 @@ ridge_df <- ridge_df[ridge_df$Coefficient != 0, ]
 print(ridge_df)
 ```
 
-
 ## Model Visual of Ridge Regression
+
 ```{r}
 plot(Y_test, ridge_preds_test, main = "Actual vs. Predicted Prices (Ridge Regression)",
      xlab = "Actual Prices", ylab = "Predicted Prices", col = "blue", pch = 16)
 abline(0, 1, col = "red", lwd = 2)
 ```
-
-
 
 ## Lasso Regression Evaluation
 
@@ -374,7 +475,8 @@ print(paste("Lasso Regression - Train RMSE:", lasso_train_results$RMSE, "R²:", 
 print(paste("Lasso Regression - Test RMSE:", lasso_test_results$RMSE, "R²:", lasso_test_results$R2))
 
 ```
-## Lasso Coeficients 
+
+## Lasso Coeficients
 
 ```{r}
 lasso_coeffs <- coef(lasso_model)
@@ -392,27 +494,29 @@ plot(Y_test, lasso_preds_test, main = "Actual vs. Predicted Prices (Lasso Regres
      xlab = "Actual Prices", ylab = "Predicted Prices", col = "blue", pch = 16)
 abline(0, 1, col = "red", lwd = 2)
 ```
+
 ## Lasso Coefficients Shrinkage
+
 ```{r}
 plot(lasso_model, xvar = "lambda", label = TRUE)
 ```
-# Conclusion of which is the best model to implement
 
+# Conclusion of which is the best model to implement
 
 # Model Evalution and Prediction
 
 ### F-test
+
 ```{r}
 results <- anova(final_regression_model)
 print(results)
 ```
 
-
 ### R-sqaured
+
 ```{r}
 summary(final_regression_model)
 ```
-
 
 ### RMSE
 
@@ -437,11 +541,10 @@ print(paste("MSE: ", mse_value))
 
 ```
 
-
-### best subset 
+### best subset
 
 ```{r}
-best_subset <- regsubsets(price ~ sqft_living + bathrooms + grade + floors + view + condition + yr_built, data = cleaned_without_influential)
+best_subset <- regsubsets(ln_price ~ sqft_living + bathrooms + grade + floors + view + condition + yr_built, data = cleaned_without_influential)
 
 
 best_subset_summary <- summary(best_subset)
@@ -453,7 +556,7 @@ best_model_size <- which.max(best_subset_summary$adjr2)  # Model size with highe
 best_predictors <- names(coef(best_subset, best_model_size))[-1]  # Remove the intercept
 
 # Create the formula for the final model with the selected predictors
-formula <- as.formula(paste("price ~", paste(best_predictors, collapse = " + ")))
+formula <- as.formula(paste("ln_price ~", paste(best_predictors, collapse = " + ")))
 
 # Fit the final linear model
 final_model <- lm(formula, data = cleaned_without_influential)
@@ -466,64 +569,3 @@ summary(final_model)
 cat("\nVariance Inflation Factor (VIF):\n")
 vif(final_model)
 ```
-
-
-### Residuals graph
-#### there is a linear relationship between the predictos and the price
-
-there are going to be multiple of these set ups and values here so we need to look at the data a bit more closely
-
-#### Predictors are independent and obsered with negligable error
-
-```{r}
-cor_matrix <- cor(cleaned_without_influential %>% 
-  dplyr::select(sqft_living, bathrooms, grade, floors, view, condition, yr_built))
-print(cor_matrix)
-
-```
-
-```{r}
-model <- lm(price ~ sqft_living + bathrooms + grade + floors + view + condition + yr_built, data = cleaned_without_influential)
-vif(model)
-```
-
-#### Residuals Errors have a Mean Value of Zero
-
-```{r}
-model <- lm(price ~ sqft_living + bathrooms + grade + floors + view + condition + yr_built, data = cleaned_without_influential)
-
-# Step 2: Get residuals from the model
-residuals <- model$residuals
-
-# Step 3: Plot residuals vs fitted values
-plot(model$fitted.values, residuals, 
-     main = "Residuals vs Fitted Values", 
-     xlab = "Fitted Values", 
-     ylab = "Residuals", 
-     pch = 19, col = "blue")  # Customize points for clarity
-abline(h = 0, col = "red")
-```
-```{r}
-mean_residuals <- mean(residuals)
-print(paste("Mean of residuals: ", mean_residuals))
-```
-
-
-#### Residual Errors have a constant variance
-
-#### Residual Errors are independent from eachother and predictors
-
-
-### Predicted Values vs. True Values 
-
-```{r}
-
-```
-
-
-# References
-
-- OpenML Link (where we imported the data set)
--We also could download and see how everything looks for the data 
-https://www.openml.org/search?type=data&status=active&id=42635
-- https://www.northwoodsrealtors.org/SquareFtg0609.pdf article on how sqaure footage is used in seattle and washington
