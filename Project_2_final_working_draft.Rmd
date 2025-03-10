@@ -6,7 +6,7 @@ date: "2025-03-07"
 
 # Title
 
-### Preston O'Connor, Khoa Dao
+### Preston O'Connor, Khoa Dao, Nick Wierzbowski
 
 ### 3/12/2025
 
@@ -118,9 +118,10 @@ cleaned <- data %>%
 head(cleaned)
 ```
 
-## Data Visualization 
+## Data Visualization
 
 ### Histogram of house price
+
 ```{r}
 ggplot(cleaned, aes(x = price)) +
   geom_histogram(fill = "blue", bins = 30) +
@@ -129,6 +130,7 @@ ggplot(cleaned, aes(x = price)) +
 ```
 
 ### Histogram of ln(house price)
+
 ```{r}
 ggplot(cleaned, aes(x = ln_price)) +
   geom_histogram(fill = "blue", bins = 30) +
@@ -136,13 +138,14 @@ ggplot(cleaned, aes(x = ln_price)) +
   ggtitle("Distribution of House Prices")
 ```
 
-The original histogram of house prices is right-skewed, meaning most homes have lower prices, while a few expensive houses create a long right tail. This skewness violates normality assumptions. Taking the log transformation makes it more symmetric and reduces the influence of extreme high-priced houses, which improves model interpretability and accuracy.
-### Boxplot of ln(house price)
+The original histogram of house prices is right-skewed, meaning most homes have lower prices, while a few expensive houses create a long right tail. This skewness violates normality assumptions. Taking the log transformation makes it more symmetric and reduces the influence of extreme high-priced houses, which improves model interpretability and accuracy. \### Boxplot of ln(house price)
+
 ```{r}
 boxplot(cleaned$ln_price, main = "Boxplot of House Prices", col = "blue", ylab = "ln_price")
 ```
 
-### Correlation heatmap 
+### Correlation heatmap
+
 ```{r}
 zero_variance_vars <- nearZeroVar(cleaned, saveMetrics = TRUE)
 print(zero_variance_vars)
@@ -154,7 +157,6 @@ cleaned_filtered <- cleaned %>%
 cor_matrix <- cor(cleaned_filtered %>% select_if(is.numeric))
 ggcorrplot::ggcorrplot(cor_matrix, hc.order = TRUE, type = "lower", lab = TRUE)
 ```
-
 
 ## Implement another helper for outlier filtering???
 
@@ -503,7 +505,7 @@ plot(lasso_model, xvar = "lambda", label = TRUE)
 
 # Conclusion of which is the best model to implement
 
-# Model Evalution and Prediction
+# Model Evaluation and Prediction
 
 ### F-test
 
@@ -512,11 +514,21 @@ results <- anova(final_regression_model)
 print(results)
 ```
 
-### R-sqaured
+The Analysis of Variance (ANOVA) table indicates that all the predictors included in the model are statistically significant in explaining the variability in the response variable, `ln_price`. Each predictor, such as `sqft_living`, `grade`, `bathrooms`, `view`, `condition`, and `yr_built`, has an extremely small p-value of `< 2.2e-16`, which strongly supports their significance. Among these, `sqft_living` and `grade` are particularly influential, as evidenced by their high Sum of Squares (1369.45 and 275.77, respectively) and substantial F-values (19242.814 and 3874.972, respectively). The other predictors, while less influential, still make meaningful contributions to the model, with factors like `view` and `condition` showing F-values of 379.824 and 992.788, respectively.
+
+The residuals have a Sum of Squares of 1250.62 and a low Mean Square of 0.07, indicating that the variance not accounted for by the predictors is minimal. This suggests that the model fits the data well overall. The high F-values across all predictors reflect their strong ability to explain the variability in the response, further affirming the robustness of the model. In conclusion, the ANOVA results highlight that the chosen predictors collectively account for most of the variability in `ln_price`, making the model both statistically sound and effective for explaining the response variable.
+
+### R-squared
 
 ```{r}
 summary(final_regression_model)
 ```
+
+In this model summary, the **Multiple R-squared value** is 0.6164, which indicates that approximately **61.64% of the variability in the response variable (`ln_price`)** is explained by the predictors included in the model (`sqft_living`, `grade`, `bathrooms`, `view`, `condition`, and `yr_built`).
+
+The **Adjusted R-squared value** is **0.6163**, which is slightly lower than the Multiple R-squared. This adjusted value accounts for the number of predictors in the model relative to the sample size and helps prevent overestimation of the model's explanatory power when additional variables are included. Since the difference between the two values is very small, it suggests that the model is not overfitted, and all predictors contribute meaningfully to explaining the response.
+
+In summary, the R-squared values indicate that the model has a good fit, explaining a significant portion of the variability in `ln_price`, while leaving around 38.36% of the variability unexplained, potentially due to other factors not included in the model or inherent randomness in the data.
 
 ### RMSE
 
@@ -528,6 +540,10 @@ rmse_value <- sqrt(mean(residuals_model^2))
 print(paste("RMSE: ", rmse_value))
 ```
 
+The RMSE (Root Mean Square Error) value of **0.2667** indicates the average error in the predictions made by the model. Specifically, it means that, on average, the predicted values of `ln_price` deviate from the actual observed values by about **0.267** units in the logarithmic scale.
+
+In practical terms, a lower RMSE value is better, as it reflects more accurate predictions. Considering this model's context, an RMSE of **0.2667** suggests that the model performs well and makes reasonably precise predictions.
+
 ### MSE
 
 ```{r}
@@ -535,13 +551,17 @@ mse_value <- mean(residuals_model^2)
 print(paste("MSE: ", mse_value))
 ```
 
-### normaization of the model comparison
+The Mean Squared Error (MSE) value of **0.0711** represents the average squared difference between the predicted and actual values of the response variable, `ln_price`. Since the MSE is the square of the Root Mean Square Error (RMSE), it captures the same concept but emphasizes larger errors more heavily due to squaring.
+
+In this case, an MSE of **0.0711** suggests that, on average, the squared prediction errors are relatively small, which is a good sign for your model's accuracy.
+
+### Normalization of the model comparison
 
 ```{r}
 
 ```
 
-### best subset
+### Best Subset
 
 ```{r}
 best_subset <- regsubsets(ln_price ~ sqft_living + bathrooms + grade + floors + view + condition + yr_built, data = cleaned_without_influential)
@@ -569,3 +589,9 @@ summary(final_model)
 cat("\nVariance Inflation Factor (VIF):\n")
 vif(final_model)
 ```
+
+The best subset of predictors for the model was identified using the best subset selection method, which systematically evaluates all possible combinations of predictors to find the model that optimally balances goodness of fit and simplicity. This was achieved using the `regsubsets()` function, which computed models of varying sizes and provided a summary of evaluation metrics. The Adjusted R-squared value was chosen as the selection criterion to ensure the model explained the most variance in `ln_price` without unnecessary complexity.
+
+The optimal model size, corresponding to the highest Adjusted R-squared value, was determined using `which.max(best_subset_summary$adjr2)`. The predictors from this model were extracted using the `coef()` function, ensuring that only variables with meaningful contributions to the response were included. Finally, a regression model was built dynamically using these predictors with the `lm()` function, resulting in an optimized model that balances explanatory power and parsimony. This rigorous selection process ensured that the final predictors were both statistically significant and practically relevant.
+
+### Prediction
