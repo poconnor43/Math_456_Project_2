@@ -12,7 +12,7 @@ date: "2025-03-07"
 
 # Introduction
 
-# Note: We are modeling to see if there is a good multivariate regression model to predict the prices of the houses in Seatle
+# Note: We are modeling to see if there is a good multivariate regression model to predict the prices of the houses in Seattle
 
 ```{r}
 #Call this section of code to install all of the libraries on your device
