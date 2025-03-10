@@ -138,14 +138,14 @@ ggplot(cleaned, aes(x = ln_price)) +
   ggtitle("Distribution of ln(House Prices)")
 ```
 
-The original histogram of house prices is right-skewed, meaning most homes have lower prices, while a few expensive houses create a long right tail. This skewness violates normality assumptions. Taking the log transformation makes it more symmetric and reduces the influence of extreme high-priced houses, which improves model interpretability and accuracy.
-### Boxplot of ln(house price)
+The original histogram of house prices is right-skewed, meaning most homes have lower prices, while a few expensive houses create a long right tail. This skewness violates normality assumptions. Taking the log transformation makes it more symmetric and reduces the influence of extreme high-priced houses, which improves model interpretability and accuracy. \### Boxplot of ln(house price)
+
 ```{r}
 boxplot(cleaned$ln_price, main = "Boxplot of ln(House Prices)", col = "blue", ylab = "ln_price")
 ```
 
-Since the boxplot shows some outliers outside the interquartile range, we will remove these outliers. 
-### Boxplot of ln(house price) after removing outliers
+Since the boxplot shows some outliers outside the interquartile range, we will remove these outliers. \### Boxplot of ln(house price) after removing outliers
+
 ```{r}
 # Find the IQR range
 IQR_of_ln_price <- IQR(cleaned$ln_price, na.rm = TRUE)
@@ -161,7 +161,8 @@ boxplot(cleaned$ln_price, main = "Boxplot of House Prices", col = "blue", ylab =
 
 The boxplot of log-transformed house prices (ln_price) displays a symmetrical distribution with a compact interquartile range, indicating reduced variability. There are fewer outliers compared to the original price distribution, confirming that the log transformation effectively reduces skewness and normalizes the data.
 
-### Correlation heatmap 
+### Correlation heatmap
+
 ```{r}
 zero_variance_vars <- nearZeroVar(cleaned, saveMetrics = TRUE)
 print(zero_variance_vars)
@@ -613,3 +614,18 @@ The best subset of predictors for the model was identified using the best subset
 The optimal model size, corresponding to the highest Adjusted R-squared value, was determined using `which.max(best_subset_summary$adjr2)`. The predictors from this model were extracted using the `coef()` function, ensuring that only variables with meaningful contributions to the response were included. Finally, a regression model was built dynamically using these predictors with the `lm()` function, resulting in an optimized model that balances explanatory power and parsimony. This rigorous selection process ensured that the final predictors were both statistically significant and practically relevant.
 
 ### Prediction
+
+```{r}
+# Generate predictions for the test dataset
+predictions <- predict(final_model, newdata = X_test)
+
+# Plot predicted vs. actual values
+plot(Y_test, predictions, 
+     xlab = "Actual ln_price", 
+     ylab = "Predicted ln_price", 
+     main = "Predicted vs. Actual Values",
+     col = "blue", pch = 16)
+abline(0, 1, col = "red")  # Add a reference line (y = x)
+
+
+```
