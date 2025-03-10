@@ -135,17 +135,33 @@ ggplot(cleaned, aes(x = price)) +
 ggplot(cleaned, aes(x = ln_price)) +
   geom_histogram(fill = "blue", bins = 30) +
   theme_minimal() +
-  ggtitle("Distribution of House Prices")
+  ggtitle("Distribution of ln(House Prices)")
 ```
 
-The original histogram of house prices is right-skewed, meaning most homes have lower prices, while a few expensive houses create a long right tail. This skewness violates normality assumptions. Taking the log transformation makes it more symmetric and reduces the influence of extreme high-priced houses, which improves model interpretability and accuracy. \### Boxplot of ln(house price)
-
+The original histogram of house prices is right-skewed, meaning most homes have lower prices, while a few expensive houses create a long right tail. This skewness violates normality assumptions. Taking the log transformation makes it more symmetric and reduces the influence of extreme high-priced houses, which improves model interpretability and accuracy.
+### Boxplot of ln(house price)
 ```{r}
+boxplot(cleaned$ln_price, main = "Boxplot of ln(House Prices)", col = "blue", ylab = "ln_price")
+```
+
+Since the boxplot shows some outliers outside the interquartile range, we will remove these outliers. 
+### Boxplot of ln(house price) after removing outliers
+```{r}
+# Find the IQR range
+IQR_of_ln_price <- IQR(cleaned$ln_price, na.rm = TRUE)
+ln_price_lower <- quantile(cleaned$ln_price, 0.25, na.rm = TRUE) - 1.5 * IQR_of_ln_price
+ln_price_upper <- quantile(cleaned$ln_price, 0.75, na.rm = TRUE) + 1.5 * IQR_of_ln_price
+
+# Continue to filter any of the outliers outside IQR
+cleaned <- cleaned %>%
+  filter(ln_price >= ln_price_lower & ln_price <= ln_price_upper)
+
 boxplot(cleaned$ln_price, main = "Boxplot of House Prices", col = "blue", ylab = "ln_price")
 ```
 
-### Correlation heatmap
+The boxplot of log-transformed house prices (ln_price) displays a symmetrical distribution with a compact interquartile range, indicating reduced variability. There are fewer outliers compared to the original price distribution, confirming that the log transformation effectively reduces skewness and normalizes the data.
 
+### Correlation heatmap 
 ```{r}
 zero_variance_vars <- nearZeroVar(cleaned, saveMetrics = TRUE)
 print(zero_variance_vars)
@@ -157,6 +173,8 @@ cleaned_filtered <- cleaned %>%
 cor_matrix <- cor(cleaned_filtered %>% select_if(is.numeric))
 ggcorrplot::ggcorrplot(cor_matrix, hc.order = TRUE, type = "lower", lab = TRUE)
 ```
+
+The correlation heatmap shows the relationships between different features in the dataset. `ln_price` (log-transformed house price) is strongly correlated with `sqft_living` (0.64), `grade` (0.72), and `bathrooms` (0.62), indicating that larger and higher-quality homes tend to be more expensive. `sqft_living` and `sqft_above` have a very high correlation (0.86), suggesting possible multicollinearity. `yr_built` and `condition` show weak or negative correlations with other features, implying they have less impact on price.
 
 ## Implement another helper for outlier filtering???
 
