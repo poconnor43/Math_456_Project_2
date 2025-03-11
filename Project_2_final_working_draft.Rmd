@@ -28,12 +28,12 @@ Although our results indicate that as much as 61% the variability in a house's p
 #install.packages(c("caret", "ggplot2", "MASS", "car", "dplyr", "tibble", "foreign","reshape2"))
 #Refernce Library calls to which data sets will be implemented and used
 
-library(caret)
+library(caret) 
 library(tidyverse)
 library(tidymodels)
 library(leaps)
 library(car)  # for the VIF Model
-library(dplyr)
+library(dplyr) 
 library(MASS) # used for the stepwise function and see how the data is being implemented
 library(glmnet)
 library(foreign) # used to read the arff file
@@ -147,7 +147,9 @@ ggplot(cleaned, aes(x = ln_price)) +
   ggtitle("Distribution of ln(House Prices)")
 ```
 
-The original histogram of house prices is right-skewed, meaning most homes have lower prices, while a few expensive houses create a long right tail. This skewness violates normality assumptions. Taking the log transformation makes it more symmetric and reduces the influence of extreme high-priced houses, which improves model interpretability and accuracy. \### Boxplot of ln(house price)
+The original histogram of house prices is right-skewed, meaning most homes have lower prices, while a few expensive houses create a long right tail. This skewness violates normality assumptions. Taking the log transformation makes it more symmetric and reduces the influence of extreme high-priced houses, which improves model interpretability and accuracy. 
+
+### Boxplot of ln(house price)
 
 ```{r}
 boxplot(cleaned$ln_price, main = "Boxplot of ln(House Prices)", col = "blue", ylab = "ln_price")
@@ -186,20 +188,6 @@ ggcorrplot::ggcorrplot(cor_matrix, hc.order = TRUE, type = "lower", lab = TRUE)
 
 The correlation heatmap shows the relationships between different features in the dataset. `ln_price` (log-transformed house price) is strongly correlated with `sqft_living` (0.64), `grade` (0.72), and `bathrooms` (0.62), indicating that larger and higher-quality homes tend to be more expensive. `sqft_living` and `sqft_above` have a very high correlation (0.86), suggesting possible multicollinearity. `yr_built` and `condition` show weak or negative correlations with other features, implying they have less impact on price.
 
-## Implement another helper for outlier filtering???
-
-```{r}
-
-multi_reg_model <- lm(ln_price ~ . -price, data = cleaned)  
-
-stepwise_model <- stepAIC(multi_reg_model, direction = "backward", trace = FALSE)
-
-summary(stepwise_model)
-vif(stepwise_model) # delete
-```
-
-# end of research and messing around data
-
 # Analysis
 
 ### Selecting Variables for the Multivariate Regression Model
@@ -210,8 +198,9 @@ multi_reg_model <- lm(ln_price ~ . -price, data = cleaned)
 stepwise_model <- stepAIC(multi_reg_model, direction = "backward", trace = FALSE)
 
 summary(stepwise_model)
-vif(stepwise_model) # delete
+vif(stepwise_model) 
 ```
+The backwards stepwise functions generates a model with an Adjusted R Square of 0.5575 which is relatively good for a starting basis. Our p values are Less then 0.05 meaning that each of these have meaningful impact. However, it may be possible to refine this model and effective to check for colinearity to see if this can be streamlined down into a more effective statistical model.
 
 ### Outline Potential Model Issues
 
@@ -219,8 +208,13 @@ vif(stepwise_model) # delete
 par(mfrow = c(2, 2))
 plot(multi_reg_model)
 ```
+- Residuals vs Fitted: Here we are checking for the linearity and the homoscedasticity. Ideally the Readline should be flat. In this model we see that there is a minor funnel shape that is appearing in the data. this could be occurring from further outliers that are influencing our model
 
-Most of our value should sit in between the 3 and the negative 3
+- Q-Q Residual: Here we look at the normality of the residuals and compare it to the theoreticla normal distribution. For most of our model, the residuals closely follow the lines. However, we see deviations in the tails showing some trends toward skewed distributions or heavy tail based residuals
+
+- Scale-Location: Here we evaluate the homoscedascity of the model. Our models line being relatively flat shows a promising start. We have an extreme spread of residuals in the model have an extreme spread from the line. 
+
+- Residuals vs. Leverage: Here we want to see if we have any influential points in the model that are effecting the regression result. We will further investigate the points with high leverage and large residuals( further from the red line) to see how they disproportional effect the model of the data. Implementing Cook's law may assisist in filtering out these data points and improving the model.
 
 ### Implementing Cook's Distance to find outlier points
 
@@ -251,6 +245,7 @@ nrow(outliers_summary)
 # Print the outlier summary
 # print(outliers_summary)
 ```
+Here we see there are 944 influential points that are found with a significant impact on the regression model. 
 
 #### Cook's Distance to Find influential points
 
@@ -259,10 +254,11 @@ cooksD <- cooks.distance(stepwise_model)
 plot(cooksD,type="b",pch=18,col="red")
 influential <- cooksD[(cooksD > (3 * mean(cooksD, na.rm = TRUE)))]
 ```
+From the values found above we see a majority have a low impact on the actual effect of the regression model, this means these points are not significantly impacting the regression model. There are multiple instance of high spikes where we have a noticabley higher cooks distance. These influential data point may in turn be affecting the accuracy of the model.
 
-Take note of the number of outliers in the cook's distance model we are implementing
 
-#### Identify and Remove Influential Points
+
+#### Identify and Remove Influential Points from Cook's Model
 
 ```{r}
 # Define a threshold for influential points
@@ -282,13 +278,7 @@ model2 <- lm(ln_price ~ sqft_living + bathrooms + grade + floors + view + condit
 
 summary(model2)
 ```
-
-#### Updated new Diagnositc Plot
-
-```{r}
-par(mfrow = c(2, 2))
-plot(model2)
-```
+Here we see an increase in the Adjusted R-Squared model going from 0.5575 to 0.6268 showing a strong improvement in our models accuracy overall. 
 
 ### Variance Inflation Factor
 
@@ -309,7 +299,7 @@ cleaned_without_influential %>%
   round(2)
 ```
 
--   From here we see that there are strong correlations between sqft_living and sqft_above (0.86), sqft_living and bathrooms(0.71), and sqft_living and grade(0.72). Given that sqft_living has the highest VIF, it is likely driving much of the collinearity in the model.
+-   From here we see that there are strong correlations between `sqft_living` and `sqft_above` (0.86), `sqft_living` and `bathrooms`(0.71), and `sqft_living` and `grade`(0.72). Given that `sqft_living` has the highest VIF, it is likely driving much of the collinearity in the model.
 
 ### Removal of `sqft_living` on the Model
 
@@ -327,7 +317,7 @@ summary(final_regression_model )
 vif(final_regression_model )
 ```
 
--   From an hand out from the Northwoods Realtors, the square footage of the home's living space is an area that includes all finished, heated areas across all floors, encompassing the second floor if it meets this criteria. Given the criteria of `sqft_living` encompasses the `above_sqft` due to Washington and Seatle building, and the adjusted R-sqaure only having a minor decrease in the original Adjusted R Sqaured its safe to remove the columns and continue the models
+It is important to note the square footage of the home's living space is an area that includes all finished, heated areas across all floors, encompassing the second floor if it meets this criteria. Given the criteria of `sqft_living` encompasses the `above_sqft` due to United state building codes and the adjusted R-square only having a minor decrease in the original Adjusted R Squared, its safe to remove the columns and continue the models
 
 ### F-test
 
@@ -345,8 +335,6 @@ final_regression_model <- lm(ln_price ~ sqft_living + grade + bathrooms+ view + 
 summary(final_regression_model )
 vif(final_regression_model )
 ```
-
-Question(Did we ever go over using Ridge and Lasso in Regression models)
 
 ### Repeated K fold cross-validation
 
@@ -369,6 +357,8 @@ residuals_final <- residuals(final_model)
 print(model)
 ```
 
+With R-squared at 0.6155, the model shows a modest predictors-target relationship and explains 61.55% of the variance, which is decent but not overly precise. With an RMSE of 0.2659, a reasonable error is present, but given the data size, types, and cross-validation. It gives a reasonable base line
+
 ### Q-Q Residuals
 
 ```{r}
@@ -376,162 +366,20 @@ print(model)
 qqnorm(residuals_final)                  
 qqline(residuals_final, col = "red")    
 ```
+Here we see there is a strong linear relation ship between the samples after all of the adjustments we have made. We can see here that the residuals of housing after performing our natural log on price and removal and adjustment of outliers and influential points has strengthen and assisted in the model development. However, our model still shows signs of tailing.
 
-# Ridge Regression evaluation of the Model
 
-```{r}
-# Normalizing the data set
-X <- cleaned_without_influential[, c("bedrooms", "bathrooms", "sqft_living", "sqft_lot", 
-                                     "floors", "view", "condition", "grade", "sqft_above", "yr_built")]
-Y <- cleaned_without_influential$ln_price
+# Final Regression Model
 
-set.seed(1)  # For reproducibility
-trainIndex <- createDataPartition(Y, p = 0.7, list = FALSE)
+$$ 
+\ln(\text{Price}) = 22.47 + 0.0001493(\text{sqft_living}) + 0.2405(\text{grade}) + 0.1194(\text{bathrooms}) + 0.06258(\text{view}) + 0.02137(\text{condition}) - 0.006042(\text{yr_built})
+$$
+We then raise the model to the power of e to get the true Price base model after our normalization process that we implemented in the beginning
+- this will be a crucial for when we start to model Predicted versus actual in terms of our price
 
-# Split data
-X_train <- X[trainIndex, ]
-X_test  <- X[-trainIndex, ]
-Y_train <- Y[trainIndex]
-Y_test  <- Y[-trainIndex]
-
-cols_to_scale <- c("sqft_living", "sqft_lot", "sqft_above", "yr_built")
-
-# Standardize only relevant columns
-preProc <- preProcess(X_train[, cols_to_scale], method = c("center", "scale"))
-X_train[, cols_to_scale] <- predict(preProc, X_train[, cols_to_scale])
-X_test[, cols_to_scale] <- predict(preProc, X_test[, cols_to_scale])
-
-#into a matrix format
-X_train_mat <- as.matrix(X_train)
-X_test_mat  <- as.matrix(X_test)
-
-lambdas <- 10^seq(2, -3, by = -0.1)
-
-# Train Ridge Regression with Cross-Validation to find the best lambda
-ridge_cv <- cv.glmnet(X_train_mat, Y_train, alpha = 0, lambda = lambdas)
-
-# Get the best lambda
-best_lambda_ridge <- ridge_cv$lambda.min
-
-# Train Ridge Regression with the best lambda
-ridge_model <- glmnet(X_train_mat, Y_train, alpha = 0, lambda = best_lambda_ridge)
-
-```
-
-## Model Predictions and Evalueation
-
-```{r}
-ridge_preds_train <- predict(ridge_model, newx = X_train_mat)
-ridge_preds_test  <- predict(ridge_model, newx = X_test_mat)
-
-```
-
-## Ridge Regression Model
-
-```{r}
-eval_metrics <- function(y_true, y_pred) {
-  SSE <- sum((y_pred - y_true)^2)
-  SST <- sum((y_true - mean(y_true))^2)
-  
-  r2 <- 1 - SSE / SST
-  RMSE <- sqrt(mean((y_pred - y_true)^2))
-  
-  return(list(RMSE = RMSE, R2 = r2))
-}
-
-# Evaluate Ridge Model
-ridge_train_results <- eval_metrics(Y_train, ridge_preds_train)
-ridge_test_results <- eval_metrics(Y_test, ridge_preds_test)
-
-print(paste("Ridge Regression - Train RMSE:", ridge_train_results$RMSE, "R²:", ridge_train_results$R2))
-print(paste("Ridge Regression - Test RMSE:", ridge_test_results$RMSE, "R²:", ridge_test_results$R2))
-
-```
-
-## Ridge Coefficients
-
-```{r}
-ridge_coeffs <- coef(ridge_model)
-ridge_df <- data.frame(Feature = rownames(ridge_coeffs), Coefficient = as.vector(ridge_coeffs))
-
-# Display only important (nonzero) coefficients
-ridge_df <- ridge_df[ridge_df$Coefficient != 0, ]
-print(ridge_df)
-```
-
-## Model Visual of Ridge Regression
-
-```{r}
-plot(Y_test, ridge_preds_test, main = "Actual vs. Predicted Prices (Ridge Regression)",
-     xlab = "Actual Prices", ylab = "Predicted Prices", col = "blue", pch = 16)
-abline(0, 1, col = "red", lwd = 2)
-```
-
-## Lasso Regression Evaluation
-
-```{r}
-# Define lambda sequence for regularization
-lambdas <- 10^seq(2, -3, by = -0.1)
-
-# Train Lasso Regression with Cross-Validation to find best lambda
-lasso_cv <- cv.glmnet(X_train_mat, Y_train, alpha = 1, lambda = lambdas)
-
-# Get the best lambda
-best_lambda_lasso <- lasso_cv$lambda.min
-
-# Train final Lasso model with best lambda
-lasso_model <- glmnet(X_train_mat, Y_train, alpha = 1, lambda = best_lambda_lasso)
-
-# predict
-
-lasso_preds_train <- predict(lasso_model, newx = X_train_mat)
-lasso_preds_test  <- predict(lasso_model, newx = X_test_mat)
-
-eval_metrics <- function(y_true, y_pred) {
-  SSE <- sum((y_pred - y_true)^2)
-  SST <- sum((y_true - mean(y_true))^2)
-  
-  r2 <- 1 - SSE / SST
-  RMSE <- sqrt(mean((y_pred - y_true)^2))
-  
-  return(list(RMSE = RMSE, R2 = r2))
-}
-
-# Evaluate Lasso Model
-lasso_train_results <- eval_metrics(Y_train, lasso_preds_train)
-lasso_test_results <- eval_metrics(Y_test, lasso_preds_test)
-
-print(paste("Lasso Regression - Train RMSE:", lasso_train_results$RMSE, "R²:", lasso_train_results$R2))
-print(paste("Lasso Regression - Test RMSE:", lasso_test_results$RMSE, "R²:", lasso_test_results$R2))
-
-```
-
-## Lasso Coeficients
-
-```{r}
-lasso_coeffs <- coef(lasso_model)
-lasso_df <- data.frame(Feature = rownames(lasso_coeffs), Coefficient = as.vector(lasso_coeffs))
-
-# Show only important (nonzero) coefficients
-lasso_df <- lasso_df[lasso_df$Coefficient != 0, ]
-print(lasso_df)
-```
-
-## Lasso Model
-
-```{r}
-plot(Y_test, lasso_preds_test, main = "Actual vs. Predicted Prices (Lasso Regression)",
-     xlab = "Actual Prices", ylab = "Predicted Prices", col = "blue", pch = 16)
-abline(0, 1, col = "red", lwd = 2)
-```
-
-## Lasso Coefficients Shrinkage
-
-```{r}
-plot(lasso_model, xvar = "lambda", label = TRUE)
-```
-
-# Conclusion of which is the best model to implement
+$$
+\text{price} = e^{22.47 + 0.0001493 (\text{sqft_living}) + 0.2405 (\text{grade}) + 0.1194 (\text{bathrooms}) + 0.06258 (\text{view}) + 0.02137 (\text{condition}) - 0.006042 (\text{yr_built})}
+$$
 
 # Model Evaluation and Prediction
 
@@ -583,11 +431,6 @@ The Mean Squared Error (MSE) value of **0.0711** represents the average squared 
 
 In this case, an MSE of **0.0711** suggests that, on average, the squared prediction errors are relatively small, which is a good sign for your model's accuracy.
 
-### Normalization of the model comparison
-
-```{r}
-
-```
 
 ### Best Subset
 
@@ -622,10 +465,171 @@ The best subset of predictors for the model was identified using the best subset
 
 The optimal model size, corresponding to the highest Adjusted R-squared value, was determined using `which.max(best_subset_summary$adjr2)`. The predictors from this model were extracted using the `coef()` function, ensuring that only variables with meaningful contributions to the response were included. Finally, a regression model was built dynamically using these predictors with the `lm()` function, resulting in an optimized model that balances explanatory power and parsimony. This rigorous selection process ensured that the final predictors were both statistically significant and practically relevant.
 
-### Prediction
+### Regularized Regression for Comparison
+
+#### Ridge Regression evaluation of the Model
+
+We are normalizing the data step by step so that Lasso and Ridge regression can regularize all features equally. We first notice the difference in scale among the features `sqft_living`, `sqft_lot`, `sqft_above` and `yr_built`, which have different ranges that can skew the data( Years, square-feet). Next, we scale the data so that each feature has a mean of 0 and a standard deviation of 1. This way, each feature contributes equally to the regularization process. This scaling also improves the performance of optimization algorithms and enables the model to learn more effectively. Normalizing the data decreases the chances of overfitting and multicollinearity that can impact the performance of Lasso and Ridge regression.
 
 ```{r}
-# Generate predictions for the test dataset
+# Normalizing the data set
+riceX <- cleaned_without_influential[, c("bedrooms", "bathrooms", "sqft_living", "sqft_lot", 
+                                     "floors", "view", "condition", "grade", "sqft_above", "yr_built")]
+Y <- cleaned_without_influential$ln_p
+
+set.seed(1)  
+trainIndex <- createDataPartition(Y, p = 0.7, list = FALSE)
+
+# Split data
+X_train <- X[trainIndex, ]
+X_test  <- X[-trainIndex, ]
+Y_train <- Y[trainIndex]
+Y_test  <- Y[-trainIndex]
+
+cols_to_scale <- c("sqft_living", "sqft_lot", "sqft_above", "yr_built")
+
+# Standardize 
+preProc <- preProcess(X_train[, cols_to_scale], method = c("center", "scale"))
+X_train[, cols_to_scale] <- predict(preProc, X_train[, cols_to_scale])
+X_test[, cols_to_scale] <- predict(preProc, X_test[, cols_to_scale])
+
+#into a matrix format
+X_train_mat <- as.matrix(X_train)
+X_test_mat  <- as.matrix(X_test)
+
+lambdas <- 10^seq(2, -3, by = -0.1)
+
+# Train Ridge Regression 
+ridge_cv <- cv.glmnet(X_train_mat, Y_train, alpha = 0, lambda = lambdas)
+
+
+best_lambda_ridge <- ridge_cv$lambda.min
+
+
+ridge_model <- glmnet(X_train_mat, Y_train, alpha = 0, lambda = best_lambda_ridge)
+
+```
+
+#### Model Predictions and Evalueation
+
+```{r}
+ridge_preds_train <- predict(ridge_model, newx = X_train_mat)
+ridge_preds_test  <- predict(ridge_model, newx = X_test_mat)
+
+```
+
+#### Ridge Regression Model
+
+```{r}
+eval_metrics <- function(y_true, y_pred) {
+  SSE <- sum((y_pred - y_true)^2)
+  SST <- sum((y_true - mean(y_true))^2)
+  
+  r2 <- 1 - SSE / SST
+  RMSE <- sqrt(mean((y_pred - y_true)^2))
+  
+  return(list(RMSE = RMSE, R2 = r2))
+}
+
+
+ridge_train_results <- eval_metrics(Y_train, ridge_preds_train)
+ridge_test_results <- eval_metrics(Y_test, ridge_preds_test)
+
+print(paste("Ridge Regression - Train RMSE:", ridge_train_results$RMSE, "R-squared:", ridge_train_results$R2))
+print(paste("Ridge Regression - Test RMSE:", ridge_test_results$RMSE, "R-squared:", ridge_test_results$R2))
+
+```
+- R-squared shows that both the train and the test models have a average rating of 0.636. We can see here that after normalizing the data we get a good fit without overfitting the data
+- Low RMSE suggests that the model has a small prediction error which indicates a small prediction error
+
+#### Ridge Coefficients
+
+```{r}
+ridge_coeffs <- coef(ridge_model)
+ridge_df <- data.frame(Feature = rownames(ridge_coeffs), Coefficient = as.vector(ridge_coeffs))
+
+
+ridge_df <- ridge_df[ridge_df$Coefficient != 0, ]
+print(ridge_df)
+```
+
+The Ridge regression model worked effectively in highlighting critical predictors and minimizing the effect of less important features. The most important predictors in predicting `price` were `sqft_living` (0.2018) and `grade` (0.2242) in line with general real estate market trends. The` bathrooms `(0.0778) and `floors` (0.1285) features worked to increase prices, showing their importance in property prices. On the other hand, `sqft_above` (-0.0712) and `bedrooms `(-0.0403) received smaller weights because, logically speaking, it is not always a sign of increased cost to possess larger top floors or additional bedrooms. Unlike in the baseline model when t-values were sufficiently high to lead to overfitting, Ridge regression effectively reduced less significant features' weights, stabilizing the models in the process. Additionally, by reducing the magnitude of correlated variables such as `sqft_living` (2.875) and `bathrooms` (2.916), Ridge assisted in repairing multicollinearity for a more stable and usable model.
+
+#### Model Visual of Ridge Regression
+
+```{r}
+plot(Y_test, ridge_preds_test, main = "Actual vs. Predicted Prices (Ridge Regression)",
+     xlab = "Actual Prices", ylab = "Predicted Prices", col = "blue", pch = 16)
+abline(0, 1, col = "red", lwd = 2)
+```
+The graph shows a reasonably high positive relationship between actual and predicted house prices, which means that the Ridge Regression model is a good fit for this data. The points cluster relatively close to the diagonal line, which points towards good predictions with somewhat minimal error.
+
+
+#### Lasso Regression Evaluation
+
+```{r}
+
+lambdas <- 10^seq(2, -3, by = -0.1)
+
+
+lasso_cv <- cv.glmnet(X_train_mat, Y_train, alpha = 1, lambda = lambdas)
+
+
+best_lambda_lasso <- lasso_cv$lambda.min
+
+
+lasso_model <- glmnet(X_train_mat, Y_train, alpha = 1, lambda = best_lambda_lasso)
+
+
+lasso_preds_train <- predict(lasso_model, newx = X_train_mat)
+lasso_preds_test  <- predict(lasso_model, newx = X_test_mat)
+
+eval_metrics <- function(y_true, y_pred) {
+  SSE <- sum((y_pred - y_true)^2)
+  SST <- sum((y_true - mean(y_true))^2)
+  
+  r2 <- 1 - SSE / SST
+  RMSE <- sqrt(mean((y_pred - y_true)^2))
+  
+  return(list(RMSE = RMSE, R2 = r2))
+}
+
+# Evaluate Lasso Model
+lasso_train_results <- eval_metrics(Y_train, lasso_preds_train)
+lasso_test_results <- eval_metrics(Y_test, lasso_preds_test)
+
+print(paste("Lasso Regression - Train RMSE:", lasso_train_results$RMSE, "R²:", lasso_train_results$R2))
+print(paste("Lasso Regression - Test RMSE:", lasso_test_results$RMSE, "R²:", lasso_test_results$R2))
+
+```
+
+#### Lasso Coeficients
+
+```{r}
+lasso_coeffs <- coef(lasso_model)
+lasso_df <- data.frame(Feature = rownames(lasso_coeffs), Coefficient = as.vector(lasso_coeffs))
+
+lasso_df <- lasso_df[lasso_df$Coefficient != 0, ]
+print(lasso_df)
+```
+
+Lasso regression model successfully determined major predictors and constrained smaller or insignificant coefficients to zero. `sqft_living` (0.1953) and `grade` (0.2236) were the most influential variables impacting `ln_price`, which corroborates current trends in the 2014-2105 Washington property market. Moreover, `bathrooms` (0.0769) and `floors` (0.1235) positively influenced property value, thereby validating their inclusion in the `price` function. Conversely, `sqft_above` (-0.0644) and `bedrooms `(-0.0374) had lower weights, reflecting their lower influence on price, since adding more bedrooms or bigger upper floors does not always increase the value of a property. In contrast to the baseline model, which was prone to overfitting because of high t-values, Lasso regression automatically pushed some coefficients towards zero, thus performing feature selection and improving the model's interpretability. By reducing the impact of less informative features like `sqft_lot` (-0.0158) and regularizing multicollinear predictors, Lasso regression created a simpler and more stable model to predict house prices.
+
+#### Lasso Model
+
+```{r}
+plot(Y_test, lasso_preds_test, main = "Actual vs. Predicted Prices (Lasso Regression)",
+     xlab = "Actual Prices", ylab = "Predicted Prices", col = "blue", pch = 16)
+abline(0, 1, col = "red", lwd = 2)
+```
+The graph illustrates a high enough positive correlation between actual and predicted house prices, meaning the Ridge Regression model is a good fit for the data. The points cluster reasonably close to the diagonal line, suggesting good predictions with moderately low error. Nonetheless, there is some appreciable scatter, especially at high prices, suggesting that the model will struggle more to precisely forecast prices for higher-priced homes. This remark implies that there may be other factors at play in determining the price of high-value homes that are not well represented by the current model. 
+
+Both models Display valid alternaitves to solving and predicting our model in a more efficent and simple matter. While All models developed come into a close R-sqaured range and share simaler RMSE, It may be worthwhile implementing and looking into the normalization and Alternative regression based appriachs to get stronger and more streamlined models 
+
+
+### Prediction of ln(Price)
+
+```{r}
 predictions <- predict(final_model, newdata = X_test)
 
 # Plot predicted vs. actual values
@@ -634,14 +638,35 @@ plot(Y_test, predictions,
      ylab = "Predicted ln_price", 
      main = "Predicted vs. Actual Values",
      col = "blue", pch = 16)
-abline(0, 1, col = "red")  # Add a reference line (y = x)
+
+abline(0, 1, col = "red")  # Add the reference line back in
 
 
 ```
+### Prediction of Price
+```{r}
+# Generate predictions for the test dataset
+predictions <- predict(final_model, newdata = X_test)
+
+# Transform the predictions from ln_price to price
+predicted_prices <- exp(predictions)
+
+# Transform the actual values from ln_price to price
+actual_prices <- exp(Y_test)
+
+# Plot predicted vs. actual values
+plot(actual_prices, predicted_prices, 
+     xlab = "Actual Price", 
+     ylab = "Predicted Price", 
+     main = "Predicted vs. Actual Prices",
+     col = "blue", pch = 16)
+abline(0, 1, col = "red") 
+```
+
+
 
 # Conlcusion and Summary
-
-
+   
 
 
 # References 
