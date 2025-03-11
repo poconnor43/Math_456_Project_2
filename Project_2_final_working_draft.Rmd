@@ -629,3 +629,15 @@ abline(0, 1, col = "red")  # Add a reference line (y = x)
 
 
 ```
+
+# Conlcusion and Summary
+
+
+
+
+# References 
+
+1) The dataset used in this study is the "House Sales in King County, USA" dataset, obtained from <https://www.openml.org/search?type=data&status=active&id=42635&sort=runs>. The Author of the Dataset can be found at https://www.kaggle.com/harlfoxem/.
+2) Article entitled "Multiple Linear Regression in R" from sthda.com. This article can be found at https://www.sthda.com/english/articles/40-regression-analysis/168-multiple-linear-regression-in-r/, and was written by user "kassambara".
+3)
+4)
