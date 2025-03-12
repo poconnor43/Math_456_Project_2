@@ -1,10 +1,12 @@
 ---
 title: "Predicting Seattle Home Prices via Multivariate Regression"
-output: pdf_document
-date: "2025-03-12"
 author: "Preston O'Connor, Khoa Dao, Nick Wierzbowski, Matthew Jacob, Anthony Yasan"
-
+date: "2025-03-12"
+output:
+  pdf_document: default
+  word_document: default
 ---
+
 # Optimizing Multivariate Linear Regression for Predicting Seattle Housing Prices
 
 # Authors: Preston O'Connor, Khoa Dao, Nick Wierzbowski, Matthew Jacob, Anthony Yasan
@@ -15,12 +17,11 @@ author: "Preston O'Connor, Khoa Dao, Nick Wierzbowski, Matthew Jacob, Anthony Ya
 
 Our model is representing the relation between a variety of predictor variables, including number of floors, condition and other similar qualities of a house, and the sale price of a house. Our data is obtained from OpenML but was originally from Kaggle, where it was uploaded in 2015. It includes data for homes sold between May 2014 and May 2015. In short we included in our analysis variables that in some way described the condition or quality of the house, as using a multiple linear regression model with geo-spatial elements is beyond our current scope. Sale price, aside from being the price variable used in the dataset, is also a good indicator for actual market conditions as compared to initial listings.
 
-A question that this model addresses is the actual corollaries of house price in a city in the U.S; if house price is correlated with the quality (and thus production cost) of the product then a solution to the growing crisis of homelessness within our major cities would be to construct higher volumes of lower cost homes, which might inform policy decisions around subsidized housing and affordable housing schemes. On the other hand, if price is weakly correlated then it might suggest that actual housing costs have more to do with other factors which would inform very different policy decisions. Of course we should note that not accounting for geo-spatial, demographic and other information in this analysis is a pretty substantial omission for actual predictive capabilities, and thus our error term is going to be large. At the end of the day, the main issue is that our features are correlated with terms we don’t account for, producing a problem of endogeneity in our model. Malpezzi considers the implicit social costs and benefits of externalities in the housing market, among which are of course subsidized housing units and other schemes that aim to depress the cost of housing at the lower end, which alongside the existence of inequality may obviously skew our data. Yadavalli et al. takes into consideration a myriad of features to produce clusters of cities wherein different variables contribute the most to housing price levels. This further illustrates a reason why our model may not produce significant correlations. 
+A question that this model addresses is the actual corollaries of house price in a city in the U.S; if house price is correlated with the quality (and thus production cost) of the product then a solution to the growing crisis of homelessness within our major cities would be to construct higher volumes of lower cost homes, which might inform policy decisions around subsidized housing and affordable housing schemes. On the other hand, if price is weakly correlated then it might suggest that actual housing costs have more to do with other factors which would inform very different policy decisions. Of course we should note that not accounting for geo-spatial, demographic and other information in this analysis is a pretty substantial omission for actual predictive capabilities, and thus our error term is going to be large. At the end of the day, the main issue is that our features are correlated with terms we don’t account for, producing a problem of endogeneity in our model. Malpezzi considers the implicit social costs and benefits of externalities in the housing market, among which are of course subsidized housing units and other schemes that aim to depress the cost of housing at the lower end, which alongside the existence of inequality may obviously skew our data. Yadavalli et al. takes into consideration a myriad of features to produce clusters of cities wherein different variables contribute the most to housing price levels. This further illustrates a reason why our model may not produce significant correlations.
 
 To briefly go over each package used in this project, caret has functions used for streamlining predictive model creation. Tidyverse has a lot of general data science related functions. Tidymodels uses a lot of the same principles of tidyverse but has some more utility for modeling purposes. Leaps was used for subset selection. Car is used for linear regression analysis, in particular we used it for its Variance Inflation Factor model. Dplyr is used for data manipulation. MASS is an applied statistics package that we used for a stepwise function. Glmnet fits linear models with penalized maximum likelihood. We used foreign to read the .arff data file. GGally is an extension to ggplot2 that adds some functionality. Corrr is a package for easily creating and analyzing correlation matrices. Ggplot2 is a graphing system. Ggcorrplot enables easy visualization of correlation matrices.
 
 Although our results indicate that as much as 61% the variability in a house's price in Seattle can be determined by our final predictor variables, which reflects house quality and cost to construct, it must be repeated that due to endogeneity between factors like neighborhood median income, our predictor variables and our outcome variable that the actual strength of our model is suspect at best.
-
 
 # Note: We are modeling to see if there is a good multivariate regression model to predict the prices of the houses in Seattle
 
@@ -148,7 +149,7 @@ ggplot(cleaned, aes(x = ln_price)) +
   ggtitle("Distribution of ln(House Prices)")
 ```
 
-The original histogram of house prices is right-skewed, meaning most homes have lower prices, while a few expensive houses create a long right tail. This skewness violates normality assumptions. Taking the log transformation makes it more symmetric and reduces the influence of extreme high-priced houses, which improves model interpretability and accuracy. 
+The original histogram of house prices is right-skewed, meaning most homes have lower prices, while a few expensive houses create a long right tail. This skewness violates normality assumptions. Taking the log transformation makes it more symmetric and reduces the influence of extreme high-priced houses, which improves model interpretability and accuracy.
 
 ### Boxplot of ln(house price)
 
@@ -201,6 +202,7 @@ stepwise_model <- stepAIC(multi_reg_model, direction = "backward", trace = FALSE
 summary(stepwise_model)
 vif(stepwise_model) 
 ```
+
 The backwards stepwise functions generates a model with an Adjusted R Square of 0.5575 which is relatively good for a starting basis. Our p values are Less then 0.05 meaning that each of these have meaningful impact. However, it may be possible to refine this model and effective to check for colinearity to see if this can be streamlined down into a more effective statistical model.
 
 ### Outline Potential Model Issues
@@ -209,13 +211,14 @@ The backwards stepwise functions generates a model with an Adjusted R Square of 
 par(mfrow = c(2, 2))
 plot(multi_reg_model)
 ```
-- Residuals vs Fitted: Here we are checking for the linearity and the homoscedasticity. Ideally the Readline should be flat. In this model we see that there is a minor funnel shape that is appearing in the data. this could be occurring from further outliers that are influencing our model
 
-- Q-Q Residual: Here we look at the normality of the residuals and compare it to the theoreticla normal distribution. For most of our model, the residuals closely follow the lines. However, we see deviations in the tails showing some trends toward skewed distributions or heavy tail based residuals
+-   Residuals vs Fitted: Here we are checking for the linearity and the homoscedasticity. Ideally the Readline should be flat. In this model we see that there is a minor funnel shape that is appearing in the data. this could be occurring from further outliers that are influencing our model
 
-- Scale-Location: Here we evaluate the homoscedascity of the model. Our models line being relatively flat shows a promising start. We have an extreme spread of residuals in the model have an extreme spread from the line. 
+-   Q-Q Residual: Here we look at the normality of the residuals and compare it to the theoreticla normal distribution. For most of our model, the residuals closely follow the lines. However, we see deviations in the tails showing some trends toward skewed distributions or heavy tail based residuals
 
-- Residuals vs. Leverage: Here we want to see if we have any influential points in the model that are effecting the regression result. We will further investigate the points with high leverage and large residuals( further from the red line) to see how they disproportional effect the model of the data. Implementing Cook's law may assisist in filtering out these data points and improving the model.
+-   Scale-Location: Here we evaluate the homoscedascity of the model. Our models line being relatively flat shows a promising start. We have an extreme spread of residuals in the model have an extreme spread from the line.
+
+-   Residuals vs. Leverage: Here we want to see if we have any influential points in the model that are effecting the regression result. We will further investigate the points with high leverage and large residuals( further from the red line) to see how they disproportional effect the model of the data. Implementing Cook's law may assisist in filtering out these data points and improving the model.
 
 ### Implementing Cook's Distance to find outlier points
 
@@ -246,7 +249,8 @@ nrow(outliers_summary)
 # Print the outlier summary
 # print(outliers_summary)
 ```
-Here we see there are 944 influential points that are found with a significant impact on the regression model. 
+
+Here we see there are 944 influential points that are found with a significant impact on the regression model.
 
 #### Cook's Distance to Find influential points
 
@@ -255,9 +259,8 @@ cooksD <- cooks.distance(stepwise_model)
 plot(cooksD,type="b",pch=18,col="red")
 influential <- cooksD[(cooksD > (3 * mean(cooksD, na.rm = TRUE)))]
 ```
+
 From the values found above we see a majority have a low impact on the actual effect of the regression model, this means these points are not significantly impacting the regression model. There are multiple instance of high spikes where we have a noticabley higher cooks distance. These influential data point may in turn be affecting the accuracy of the model.
-
-
 
 #### Identify and Remove Influential Points from Cook's Model
 
@@ -279,7 +282,8 @@ model2 <- lm(ln_price ~ sqft_living + bathrooms + grade + floors + view + condit
 
 summary(model2)
 ```
-Here we see an increase in the Adjusted R-Squared model going from 0.5575 to 0.6268 showing a strong improvement in our models accuracy overall. 
+
+Here we see an increase in the Adjusted R-Squared model going from 0.5575 to 0.6268 showing a strong improvement in our models accuracy overall.
 
 ### Variance Inflation Factor
 
@@ -367,19 +371,19 @@ With R-squared at 0.6155, the model shows a modest predictors-target relationshi
 qqnorm(residuals_final)                  
 qqline(residuals_final, col = "red")    
 ```
-Here we see there is a strong linear relation ship between the samples after all of the adjustments we have made. We can see here that the residuals of housing after performing our natural log on price and removal and adjustment of outliers and influential points has strengthen and assisted in the model development. However, our model still shows signs of tailing.
 
+Here we see there is a strong linear relation ship between the samples after all of the adjustments we have made. We can see here that the residuals of housing after performing our natural log on price and removal and adjustment of outliers and influential points has strengthen and assisted in the model development. However, our model still shows signs of tailing.
 
 # Final Regression Model
 
-$$ 
-\ln(\text{price}) = 22.47 + 0.0001493(\text{sqft_living}) + 0.2405(\text{grade}) + 0.1194(\text{bathrooms}) + 0.06258(\text{view}) + 0.02137(\text{condition}) - 0.006042(\text{yr_built})
 $$
-We then raise the model to the power of e to get the true Price base model after our normalization process that we implemented in the beginning
-- this will be a crucial for when we start to model Predicted versus actual in terms of our price
+\ln(\text{price}) = 22.47 + 0.0001493(\text{sqft\_living}) + 0.2405(\text{grade}) + 0.1194(\text{bathrooms}) + 0.06258(\text{view}) + 0.02137(\text{condition}) - 0.006042(\text{yr\_built})
+$$
+
+We then raise the model to the power of e to get the true Price base model after our normalization process that we implemented in the beginning - this will be a crucial for when we start to model Predicted versus actual in terms of our price
 
 $$
-\text{price} = e^{22.47 + 0.0001493 (\text{sqft_living}) + 0.2405 (\text{grade}) + 0.1194 (\text{bathrooms}) + 0.06258 (\text{view}) + 0.02137 (\text{condition}) - 0.006042 (\text{yr_built})}
+\text{price} = e^{22.47 + 0.0001493 (\text{sqft\_living}) + 0.2405 (\text{grade}) + 0.1194 (\text{bathrooms}) + 0.06258 (\text{view}) + 0.02137 (\text{condition}) - 0.006042 (\text{yr\_built})}
 $$
 
 # Model Evaluation and Prediction
@@ -431,7 +435,6 @@ print(paste("MSE: ", mse_value))
 The Mean Squared Error (MSE) value of **0.0711** represents the average squared difference between the predicted and actual values of the response variable, `ln_price`. Since the MSE is the square of the Root Mean Square Error (RMSE), it captures the same concept but emphasizes larger errors more heavily due to squaring.
 
 In this case, an MSE of **0.0711** suggests that, on average, the squared prediction errors are relatively small, which is a good sign for your model's accuracy.
-
 
 ### Best Subset
 
@@ -542,8 +545,9 @@ print(paste("Ridge Regression - Train RMSE:", ridge_train_results$RMSE, "R-squar
 print(paste("Ridge Regression - Test RMSE:", ridge_test_results$RMSE, "R-squared:", ridge_test_results$R2))
 
 ```
-- R-squared shows that both the train and the test models have a average rating of 0.636. We can see here that after normalizing the data we get a good fit without overfitting the data
-- Low RMSE suggests that the model has a small prediction error which indicates a small prediction error
+
+-   R-squared shows that both the train and the test models have a average rating of 0.636. We can see here that after normalizing the data we get a good fit without overfitting the data
+-   Low RMSE suggests that the model has a small prediction error which indicates a small prediction error
 
 #### Ridge Coefficients
 
@@ -556,7 +560,7 @@ ridge_df <- ridge_df[ridge_df$Coefficient != 0, ]
 print(ridge_df)
 ```
 
-The Ridge regression model worked effectively in highlighting critical predictors and minimizing the effect of less important features. The most important predictors in predicting `price` were `sqft_living` (0.2018) and `grade` (0.2242) in line with general real estate market trends. The` bathrooms `(0.0778) and `floors` (0.1285) features worked to increase prices, showing their importance in property prices. On the other hand, `sqft_above` (-0.0712) and `bedrooms `(-0.0403) received smaller weights because, logically speaking, it is not always a sign of increased cost to possess larger top floors or additional bedrooms. Unlike in the baseline model when t-values were sufficiently high to lead to overfitting, Ridge regression effectively reduced less significant features' weights, stabilizing the models in the process. Additionally, by reducing the magnitude of correlated variables such as `sqft_living` (2.875) and `bathrooms` (2.916), Ridge assisted in repairing multicollinearity for a more stable and usable model.
+The Ridge regression model worked effectively in highlighting critical predictors and minimizing the effect of less important features. The most important predictors in predicting `price` were `sqft_living` (0.2018) and `grade` (0.2242) in line with general real estate market trends. The`bathrooms`(0.0778) and `floors` (0.1285) features worked to increase prices, showing their importance in property prices. On the other hand, `sqft_above` (-0.0712) and `bedrooms`(-0.0403) received smaller weights because, logically speaking, it is not always a sign of increased cost to possess larger top floors or additional bedrooms. Unlike in the baseline model when t-values were sufficiently high to lead to overfitting, Ridge regression effectively reduced less significant features' weights, stabilizing the models in the process. Additionally, by reducing the magnitude of correlated variables such as `sqft_living` (2.875) and `bathrooms` (2.916), Ridge assisted in repairing multicollinearity for a more stable and usable model.
 
 #### Model Visual of Ridge Regression
 
@@ -565,8 +569,8 @@ plot(Y_test, ridge_preds_test, main = "Actual vs. Predicted Prices (Ridge Regres
      xlab = "Actual Prices", ylab = "Predicted Prices", col = "blue", pch = 16)
 abline(0, 1, col = "red", lwd = 2)
 ```
-The graph shows a reasonably high positive relationship between actual and predicted house prices, which means that the Ridge Regression model is a good fit for this data. The points cluster relatively close to the diagonal line, which points towards good predictions with somewhat minimal error.
 
+The graph shows a reasonably high positive relationship between actual and predicted house prices, which means that the Ridge Regression model is a good fit for this data. The points cluster relatively close to the diagonal line, which points towards good predictions with somewhat minimal error.
 
 #### Lasso Regression Evaluation
 
@@ -616,7 +620,7 @@ lasso_df <- lasso_df[lasso_df$Coefficient != 0, ]
 print(lasso_df)
 ```
 
-Lasso regression model successfully determined major predictors and constrained smaller or insignificant coefficients to zero. `sqft_living` (0.1953) and `grade` (0.2236) were the most influential variables impacting `ln_price`, which corroborates current trends in the 2014-2105 Washington property market. Moreover, `bathrooms` (0.0769) and `floors` (0.1235) positively influenced property value, thereby validating their inclusion in the `price` function. Conversely, `sqft_above` (-0.0644) and `bedrooms `(-0.0374) had lower weights, reflecting their lower influence on price, since adding more bedrooms or bigger upper floors does not always increase the value of a property. In contrast to the baseline model, which was prone to overfitting because of high t-values, Lasso regression automatically pushed some coefficients towards zero, thus performing feature selection and improving the model's interpretability. By reducing the impact of less informative features like `sqft_lot` (-0.0158) and regularizing multicollinear predictors, Lasso regression created a simpler and more stable model to predict house prices.
+Lasso regression model successfully determined major predictors and constrained smaller or insignificant coefficients to zero. `sqft_living` (0.1953) and `grade` (0.2236) were the most influential variables impacting `ln_price`, which corroborates current trends in the 2014-2105 Washington property market. Moreover, `bathrooms` (0.0769) and `floors` (0.1235) positively influenced property value, thereby validating their inclusion in the `price` function. Conversely, `sqft_above` (-0.0644) and `bedrooms`(-0.0374) had lower weights, reflecting their lower influence on price, since adding more bedrooms or bigger upper floors does not always increase the value of a property. In contrast to the baseline model, which was prone to overfitting because of high t-values, Lasso regression automatically pushed some coefficients towards zero, thus performing feature selection and improving the model's interpretability. By reducing the impact of less informative features like `sqft_lot` (-0.0158) and regularizing multicollinear predictors, Lasso regression created a simpler and more stable model to predict house prices.
 
 #### Lasso Model
 
@@ -625,10 +629,10 @@ plot(Y_test, lasso_preds_test, main = "Actual vs. Predicted Prices (Lasso Regres
      xlab = "Actual Prices", ylab = "Predicted Prices", col = "blue", pch = 16)
 abline(0, 1, col = "red", lwd = 2)
 ```
-The graph illustrates a high enough positive correlation between actual and predicted house prices, meaning the Ridge Regression model is a good fit for the data. The points cluster reasonably close to the diagonal line, suggesting good predictions with moderately low error. Nonetheless, there is some appreciable scatter, especially at high prices, suggesting that the model will struggle more to precisely forecast prices for higher-priced homes. This remark implies that there may be other factors at play in determining the price of high-value homes that are not well represented by the current model. 
 
-Both models Display valid alternaitves to solving and predicting our model in a more efficent and simple matter. While All models developed come into a close R-sqaured range and share simaler RMSE, It may be worthwhile implementing and looking into the normalization and Alternative regression based appriachs to get stronger and more streamlined models 
+The graph illustrates a high enough positive correlation between actual and predicted house prices, meaning the Ridge Regression model is a good fit for the data. The points cluster reasonably close to the diagonal line, suggesting good predictions with moderately low error. Nonetheless, there is some appreciable scatter, especially at high prices, suggesting that the model will struggle more to precisely forecast prices for higher-priced homes. This remark implies that there may be other factors at play in determining the price of high-value homes that are not well represented by the current model.
 
+Both models Display valid alternaitves to solving and predicting our model in a more efficent and simple matter. While All models developed come into a close R-sqaured range and share simaler RMSE, It may be worthwhile implementing and looking into the normalization and Alternative regression based appriachs to get stronger and more streamlined models
 
 ### Prediction of ln(Price)
 
@@ -647,7 +651,9 @@ abline(a = 0, b = 1, col = "red", lwd = 2, lty = 2)
 
 
 ```
+
 ### Prediction of Price
+
 ```{r}
 predictions <- predict(final_model, newdata = X_test)
 
@@ -666,30 +672,13 @@ abline(a = 0, b = 1, col = "red", lwd = 2, lty = 2)
 
 ```
 
-
-
 # Conlcusion and Summary
-For this project, we created a multivariable regression model, which was designed to predict house prices in Seattle. 
-Our data came from the dataset 'House Sales in King County, USA', Seattle being in King County. 
-The dataset and our subsequent analysis involved various explanatory variables, including square footage, grade(quality), number of bathrooms, condition, view quality, and year built. 
-We began our analysis by performing backwards stepwise regression using stepAIC, resulting in a stepwise model with many predictors, which would be used to predict the log transform of price, which was used instead of just price to improve distribution symmetry. 
-We then applied Cook's Distance to identify influential points in our data, and we removed them. We also removed the predictor sqft_above in order to address multicollinearity, and we removed the predictor floors due to it's limited significance and to remove complexity from the model. 
-After some refinement, we were able to obtain a model with 6 predictors with a  moderate adjusted R^2 value of 0.6155, and an okay RMSE of 0.2659. 
-We then evaluated the model using the anova() function, to get Sum Squares, Mean Squares, p values, and F values, which generally showed that the variables chosen in the model, being sqft_living, grade, bathrooms, view, condition, and yr_built, effectively accounted for most of the variability in ln(price). 
-Best subset selection was then used to select the predictors providing the highest adjusted  R^2.
-Ridge Regression was used, and added stability by properly weighting different features, while also reducing multicollinearilty among correlated variables. Lasso Regression was used, and similarly reduced the impact of less important features in the model, creating a more stable predictive model.
-Normalization and Alternative regression based approaches are likely useful tools in improving overall model quality. Looking at the positives of our project, our model ended up demonstrating some predictive ability, with an adjusted R squared of well over 0.6. 
-Clearly, home price can be, to some degree, explained by our predictors. Also, we were able to symmetrize our response variable with a log transform, which better prepares our data for linear regression. 
-We were also able to simplify our model significantly via removing insignificant/problematic variables, while still maintaining predictive ability. 
-Looking at the negative aspects of our model, we were unable to include certain key variables relating to socioeconomic factors that could affect house price, including safety, school/park access, quality of schools...etc, and so we missed out on including factors that could improve predictive ability.
-Also, our improved regression model still showed tailing on both ends of our Q-Q plot. In the future, we could include these socioeconomic factors, along with location based factors that could identify certain areas that are more undesirable to live in than others. 
-Also, it would be useful from a practical standpoint to have more recent information, considering that this model is meant to help better understand the real life issue of home pricing.
-In particular, factors like Neighborhood, Crime Rate, Public Transport Access, Commute Time, Natural Disaster Risk, and Pollution could all improve model accuracy. 
 
+For this project, we created a multivariable regression model, which was designed to predict house prices in Seattle. Our data came from the dataset 'House Sales in King County, USA', Seattle being in King County. The dataset and our subsequent analysis involved various explanatory variables, including square footage, grade(quality), number of bathrooms, condition, view quality, and year built. We began our analysis by performing backwards stepwise regression using stepAIC, resulting in a stepwise model with many predictors, which would be used to predict the log transform of price, which was used instead of just price to improve distribution symmetry. We then applied Cook's Distance to identify influential points in our data, and we removed them. We also removed the predictor sqft_above in order to address multicollinearity, and we removed the predictor floors due to it's limited significance and to remove complexity from the model. After some refinement, we were able to obtain a model with 6 predictors with a moderate adjusted R\^2 value of 0.6155, and an okay RMSE of 0.2659. We then evaluated the model using the anova() function, to get Sum Squares, Mean Squares, p values, and F values, which generally showed that the variables chosen in the model, being sqft_living, grade, bathrooms, view, condition, and yr_built, effectively accounted for most of the variability in ln(price). Best subset selection was then used to select the predictors providing the highest adjusted R\^2. Ridge Regression was used, and added stability by properly weighting different features, while also reducing multicollinearilty among correlated variables. Lasso Regression was used, and similarly reduced the impact of less important features in the model, creating a more stable predictive model. Normalization and Alternative regression based approaches are likely useful tools in improving overall model quality. Looking at the positives of our project, our model ended up demonstrating some predictive ability, with an adjusted R squared of well over 0.6. Clearly, home price can be, to some degree, explained by our predictors. Also, we were able to symmetrize our response variable with a log transform, which better prepares our data for linear regression. We were also able to simplify our model significantly via removing insignificant/problematic variables, while still maintaining predictive ability. Looking at the negative aspects of our model, we were unable to include certain key variables relating to socioeconomic factors that could affect house price, including safety, school/park access, quality of schools...etc, and so we missed out on including factors that could improve predictive ability. Also, our improved regression model still showed tailing on both ends of our Q-Q plot. In the future, we could include these socioeconomic factors, along with location based factors that could identify certain areas that are more undesirable to live in than others. Also, it would be useful from a practical standpoint to have more recent information, considering that this model is meant to help better understand the real life issue of home pricing. In particular, factors like Neighborhood, Crime Rate, Public Transport Access, Commute Time, Natural Disaster Risk, and Pollution could all improve model accuracy.
 
-# References 
+# References
 
-1) The dataset used in this study is the "House Sales in King County, USA" dataset, obtained from <https://www.openml.org/search?type=data&status=active&id=42635&sort=runs>. The Author of the Dataset can be found at https://www.kaggle.com/harlfoxem/.
-2) Article entitled "Multiple Linear Regression in R" from sthda.com. This article can be found at https://www.sthda.com/english/articles/40-regression-analysis/168-multiple-linear-regression-in-r/, and was written by user "kassambara".
-3) Malpezzi, Stephen. “Housing Prices, Externalities, and Regulation in U.S. Metropolitan Areas.” Journal of Housing Research 7, no. 2 (1996): 209–41. http://www.jstor.org/stable/24832860.
-4) Yadavalli, Anita, Brenna Rivett, James Brooks, and Christiana K. McFarland. “A Comprehensive Look at Housing Market Conditions Across America’s Cities.” Cityscape 22, no. 2 (2020): 111–32. https://www.jstor.org/stable/26926899.
+1)  The dataset used in this study is the "House Sales in King County, USA" dataset, obtained from <https://www.openml.org/search?type=data&status=active&id=42635&sort=runs>. The Author of the Dataset can be found at <https://www.kaggle.com/harlfoxem/>.
+2)  Article entitled "Multiple Linear Regression in R" from sthda.com. This article can be found at <https://www.sthda.com/english/articles/40-regression-analysis/168-multiple-linear-regression-in-r/>, and was written by user "kassambara".
+3)  Malpezzi, Stephen. “Housing Prices, Externalities, and Regulation in U.S. Metropolitan Areas.” Journal of Housing Research 7, no. 2 (1996): 209–41. <http://www.jstor.org/stable/24832860>.
+4)  Yadavalli, Anita, Brenna Rivett, James Brooks, and Christiana K. McFarland. “A Comprehensive Look at Housing Market Conditions Across America’s Cities.” Cityscape 22, no. 2 (2020): 111–32. <https://www.jstor.org/stable/26926899>.
