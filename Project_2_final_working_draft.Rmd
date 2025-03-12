@@ -473,7 +473,7 @@ We are normalizing the data step by step so that Lasso and Ridge regression can 
 
 ```{r}
 # Normalizing the data set
-riceX <- cleaned_without_influential[, c("bedrooms", "bathrooms", "sqft_living", "sqft_lot", 
+X <- cleaned_without_influential[, c("bedrooms", "bathrooms", "sqft_living", "sqft_lot", 
                                      "floors", "view", "condition", "grade", "sqft_above", "yr_built")]
 Y <- cleaned_without_influential$ln_p
 
@@ -666,7 +666,7 @@ abline(0, 1, col = "red")
 
 
 # Conlcusion and Summary
-   
+For this project, we created a multivariable regression model, which was designed to predict house prices in Seattle. Our data came from the dataset 'House Sales in King County, USA', Seattle being in King County. 
 
 
 # References 
