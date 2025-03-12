@@ -373,7 +373,7 @@ Here we see there is a strong linear relation ship between the samples after all
 # Final Regression Model
 
 $$ 
-\ln(\text{Price}) = 22.47 + 0.0001493(\text{sqft_living}) + 0.2405(\text{grade}) + 0.1194(\text{bathrooms}) + 0.06258(\text{view}) + 0.02137(\text{condition}) - 0.006042(\text{yr_built})
+\ln(\text{price}) = 22.47 + 0.0001493(\text{sqft_living}) + 0.2405(\text{grade}) + 0.1194(\text{bathrooms}) + 0.06258(\text{view}) + 0.02137(\text{condition}) - 0.006042(\text{yr_built})
 $$
 We then raise the model to the power of e to get the true Price base model after our normalization process that we implemented in the beginning
 - this will be a crucial for when we start to model Predicted versus actual in terms of our price
@@ -444,10 +444,8 @@ best_subset_summary <- summary(best_subset)
 
 best_model_size <- which.max(best_subset_summary$adjr2)  # Model size with highest Adjusted R-Squared
 
-# Extract the best set of predictors from the selected model
 best_predictors <- names(coef(best_subset, best_model_size))[-1]  # Remove the intercept
 
-# Create the formula for the final model with the selected predictors
 formula <- as.formula(paste("ln_price ~", paste(best_predictors, collapse = " + ")))
 
 # Fit the final linear model
@@ -482,6 +480,10 @@ set.seed(1)
 trainIndex <- createDataPartition(Y, p = 0.7, list = FALSE)
 
 # Split data
+
+#come back !!!
+
+
 X_train <- X[trainIndex, ]
 X_test  <- X[-trainIndex, ]
 Y_train <- Y[trainIndex]
@@ -634,37 +636,34 @@ Both models Display valid alternaitves to solving and predicting our model in a 
 predictions <- predict(final_model, newdata = X_test)
 
 # Plot predicted vs. actual values
-plot(Y_test, predictions, 
-     xlab = "Actual ln_price", 
-     ylab = "Predicted ln_price", 
+plot(Y_test, predictions,
+     xlab = "Actual ln_price",
+     ylab = "Predicted ln_price",
      main = "Predicted vs. Actual Values",
      col = "blue", pch = 16)
-
-model_fit <- lm(predictions ~ Y_test)
-abline(model_fit, col = "Red", lwd = 2, lty = 2) 
+abline(a = 0, b = 1, col = "red", lwd = 2, lty = 2)
+# model_fit <- lm(predictions ~ Y_test)
+# abline(model_fit, col = "Red", lwd = 2, lty = 2)
 
 
 ```
 ### Prediction of Price
 ```{r}
-# Generate predictions for the test dataset
 predictions <- predict(final_model, newdata = X_test)
 
-# Transform the predictions from ln_price to price
 predicted_prices <- exp(predictions)
 
-# Transform the actual values from ln_price to price
+# get the general price model of the data not the log
 actual_prices <- exp(Y_test)
 
-# Plot predicted vs. actual values
 plot(actual_prices, predicted_prices, 
      xlab = "Actual Price", 
      ylab = "Predicted Price", 
      main = "Predicted vs. Actual Prices",
      col = "blue", pch = 16)
 
-# Add a reference diagonal line (perfect predictions)
-abline(model_fit, col = "red", lwd = 2, lty = 2)
+abline(a = 0, b = 1, col = "red", lwd = 2, lty = 2)
+
 ```
 
 
@@ -675,11 +674,11 @@ Our data came from the dataset 'House Sales in King County, USA', Seattle being 
 The dataset and our subsequent analysis involved various explanatory variables, including square footage, grade(quality), number of bathrooms, condition, view quality, and year built. 
 We began our analysis by performing backwards stepwise regression using stepAIC, resulting in a stepwise model with many predictors, which would be used to predict the log transform of price, which was used instead of just price to improve distribution symmetry. 
 We then applied Cook's Distance to identify influential points in our data, and we removed them. We also removed the predictor sqft_above in order to address multicollinearity, and we removed the predictor floors due to it's limited significance and to remove complexity from the model. 
-After some refinement, we were able to obtain a model with 6 predictors with a  moderate adjusted R^2 value of .6155, and an okay RMSE of .2659. 
+After some refinement, we were able to obtain a model with 6 predictors with a  moderate adjusted R^2 value of 0.6155, and an okay RMSE of 0.2659. 
 We then evaluated the model using the anova() function, to get Sum Squares, Mean Squares, p values, and F values, which generally showed that the variables chosen in the model, being sqft_living, grade, bathrooms, view, condition, and yr_built, effectively accounted for most of the variability in ln(price). 
 Best subset selection was then used to select the predictors providing the highest adjusted  R^2.
 Ridge Regression was used, and added stability by properly weighting different features, while also reducing multicollinearilty among correlated variables. Lasso Regression was used, and similarly reduced the impact of less important features in the model, creating a more stable predictive model.
-Normalization and Alternative regression based approaches are likely useful tools in improving overall model quality. Looking at the positives of our project, our model ended up demonstrating some predictive ability, with an adjusted R squared of well over .6. 
+Normalization and Alternative regression based approaches are likely useful tools in improving overall model quality. Looking at the positives of our project, our model ended up demonstrating some predictive ability, with an adjusted R squared of well over 0.6. 
 Clearly, home price can be, to some degree, explained by our predictors. Also, we were able to symmetrize our response variable with a log transform, which better prepares our data for linear regression. 
 We were also able to simplify our model significantly via removing insignificant/problematic variables, while still maintaining predictive ability. 
 Looking at the negative aspects of our model, we were unable to include certain key variables relating to socioeconomic factors that could affect house price, including safety, school/park access, quality of schools...etc, and so we missed out on including factors that could improve predictive ability.
