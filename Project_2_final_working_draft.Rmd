@@ -373,13 +373,13 @@ Here we see there is a strong linear relation ship between the samples after all
 # Final Regression Model
 
 $$ 
-\ln(\text{price}) = 22.47 + 0.0001493(\text{sqft_living}) + 0.2405(\text{grade}) + 0.1194(\text{bathrooms}) + 0.06258(\text{view}) + 0.02137(\text{condition}) - 0.006042(\text{yr_built})
+\ln(price) = 22.47 + 0.0001493 (sqft\_living) + 0.2405 (grade) + 0.1194 (bathrooms) + 0.06258 (view) + 0.02137 (condition) - 0.006042 (yr\_built)
 $$
 We then raise the model to the power of e to get the true Price base model after our normalization process that we implemented in the beginning
 - this will be a crucial for when we start to model Predicted versus actual in terms of our price
 
 $$
-\text{price} = e^{22.47 + 0.0001493 (\text{sqft_living}) + 0.2405 (\text{grade}) + 0.1194 (\text{bathrooms}) + 0.06258 (\text{view}) + 0.02137 (\text{condition}) - 0.006042 (\text{yr_built})}
+price = e^{22.47 + 0.0001493 (sqft\_living) + 0.2405 (grade) + 0.1194 (bathrooms) + 0.06258 (view) + 0.02137 (condition) - 0.006042 (yr\_built)}
 $$
 
 # Model Evaluation and Prediction
@@ -479,9 +479,11 @@ Y <- cleaned_without_influential$ln_p
 set.seed(1)  
 trainIndex <- createDataPartition(Y, p = 0.7, list = FALSE)
 
-# Split data
-
-#come back !!!
+# Split data the f stands for the future non normalized data to run the ols to compare with
+X_train_f <- X[trainIndex, ]
+X_test_f  <- X[-trainIndex, ]
+Y_train_f <- Y[trainIndex]
+Y_test_f  <- Y[-trainIndex]
 
 
 X_train <- X[trainIndex, ]
@@ -623,7 +625,7 @@ Lasso regression model successfully determined major predictors and constrained 
 ```{r}
 plot(Y_test, lasso_preds_test, main = "Actual vs. Predicted Prices (Lasso Regression)",
      xlab = "Actual Prices", ylab = "Predicted Prices", col = "blue", pch = 16)
-abline(0, 1, col = "red", lwd = 2)
+abline(0, 1, col = "red", lwd = 2, lty = 2)
 ```
 The graph illustrates a high enough positive correlation between actual and predicted house prices, meaning the Ridge Regression model is a good fit for the data. The points cluster reasonably close to the diagonal line, suggesting good predictions with moderately low error. Nonetheless, there is some appreciable scatter, especially at high prices, suggesting that the model will struggle more to precisely forecast prices for higher-priced homes. This remark implies that there may be other factors at play in determining the price of high-value homes that are not well represented by the current model. 
 
@@ -633,28 +635,26 @@ Both models Display valid alternaitves to solving and predicting our model in a 
 ### Prediction of ln(Price)
 
 ```{r}
-predictions <- predict(final_model, newdata = X_test)
+predictions <- predict(final_model, newdata = X_test_f)
 
 # Plot predicted vs. actual values
-plot(Y_test, predictions,
+plot(Y_test_f, predictions,
      xlab = "Actual ln_price",
      ylab = "Predicted ln_price",
      main = "Predicted vs. Actual Values",
      col = "blue", pch = 16)
 abline(a = 0, b = 1, col = "red", lwd = 2, lty = 2)
-# model_fit <- lm(predictions ~ Y_test)
-# abline(model_fit, col = "Red", lwd = 2, lty = 2)
-
-
 ```
+We will proceed to model out the price based predictions in the data as seen below 
+
 ### Prediction of Price
 ```{r}
-predictions <- predict(final_model, newdata = X_test)
+predictions <- predict(final_model, newdata = X_test_f)
 
 predicted_prices <- exp(predictions)
 
 # get the general price model of the data not the log
-actual_prices <- exp(Y_test)
+actual_prices <- exp(Y_test_f)
 
 plot(actual_prices, predicted_prices, 
      xlab = "Actual Price", 
@@ -665,8 +665,22 @@ plot(actual_prices, predicted_prices,
 abline(a = 0, b = 1, col = "red", lwd = 2, lty = 2)
 
 ```
+The points are clustered around the y = x identity line, meaning that the predicted price from our model is usually close to the true price. This would suggest the model is fitting relatively well to the data.
 
+# Residuals
+```{r}
+residuals_df <- tibble(
+  predictions = predictions,
+  residuals = Y_test_f - predictions
+)
 
+ggplot(residuals_df, aes(x = predictions, y = residuals)) +
+  geom_point() +  # Scatter plot of predictions vs residuals
+  geom_hline(yintercept = 0, color = "red", linetype = "dashed", size = 1.2) +  # Horizontal line at y = 0
+  labs(title = "Residual Plot", x = "Predictions", y = "Residuals") +
+  theme_minimal()
+```
+The Residuals plot shows the model to be homoscedastic. The residuals appear to be roughly even distributed throughout the model showcasing that the varianceis roughly equal.
 
 # Conlcusion and Summary
 For this project, we created a multivariable regression model, which was designed to predict house prices in Seattle. 
