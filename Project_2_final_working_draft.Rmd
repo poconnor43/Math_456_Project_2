@@ -242,7 +242,8 @@ Here we see there are 944 influential points that are found with a significant i
 
 #### Cook's Distance to Find influential points
 
-```{r, fig.width=7}
+```{r, fig.width=7, fig.height=5}
+par(mar = c(5, 5, 4, 2) + 0.1)
 cooksD <- cooks.distance(stepwise_model)
 plot(cooksD,type="b",pch=18,col="red")
 influential <- cooksD[(cooksD > (3 * mean(cooksD, na.rm = TRUE)))]
@@ -369,6 +370,11 @@ Here we see there is a strong linear relation ship between the samples after all
 
 # Final Regression Model
 
+$$ 
+\small
+\ln(price) = 22.47 + 0.0001493 (sqft\_living) + 0.2405 (grade) + 0.1194 (bathrooms)\\
+\small
++ 0.06258 (view) + 0.02137 (condition) - 0.006042 (yr\_built)
 $$
 \ln(\text{price}) = 22.47 + 0.0001493(\text{sqft\_living}) + 0.2405(\text{grade}) + 0.1194(\text{bathrooms}) + 0.06258(\text{view}) + 0.02137(\text{condition}) - 0.006042(\text{yr\_built})
 $$
@@ -563,7 +569,8 @@ The Ridge regression model worked effectively in highlighting critical predictor
 
 #### Model Visual of Ridge Regression
 
-```{r, fig.width=7}
+```{r, fig.width=7, fig.height=5}
+par(mar = c(5, 5, 4, 2) + 0.1)
 plot(Y_test, ridge_preds_test, main = "Actual vs. Predicted Prices (Ridge Regression)",
      xlab = "Actual Prices", ylab = "Predicted Prices", col = "blue", pch = 16)
 abline(0, 1, col = "red", lwd = 2)
