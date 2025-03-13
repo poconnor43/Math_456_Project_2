@@ -1,16 +1,11 @@
 ---
-title: "Predicting Seattle Home Prices via Multivariate Regression"
+title: "Multivariate Linear Regression for Predicting Seattle Housing Prices"
 author: "Preston O'Connor, Khoa Dao, Nick Wierzbowski, Matthew Jacob, Anthony Yasan"
 date: "2025-03-12"
 output:
   pdf_document: default
   word_document: default
 ---
-# Multivariate Linear Regression for Predicting Seattle Housing Prices
-
-# Authors: Preston O'Connor, Khoa Dao, Nick Wierzbowski, Matthew Jacob, Anthony Yasan
-
-# 3/12/2025
 
 # Introduction
 
