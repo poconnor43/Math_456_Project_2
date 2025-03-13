@@ -240,13 +240,16 @@ nrow(outliers_summary)
 
 Here we see there are 944 influential points that are found with a significant impact on the regression model.
 
-#### Cook's Distance to Find influential points
+### Cook's Distance to Find influential points
 
-```{r, fig.width=7, fig.height=5}
+
+
+```{r, fig.width=5, fig.height=5}
 par(mar = c(5, 5, 4, 2) + 0.1)
 cooksD <- cooks.distance(stepwise_model)
 plot(cooksD,type="b",pch=18,col="red")
 influential <- cooksD[(cooksD > (3 * mean(cooksD, na.rm = TRUE)))]
+box(which = "outer", col = "red") # Shows the outer plot region
 ```
 
 From the values found above we see a majority have a low impact on the actual effect of the regression model, this means these points are not significantly impacting the regression model. There are multiple instance of high spikes where we have a noticabley higher cooks distance. These influential data point may in turn be affecting the accuracy of the model.
@@ -370,16 +373,15 @@ Here we see there is a strong linear relation ship between the samples after all
 
 # Final Regression Model
 
-$$ 
-\small
-\ln(price) = 22.47 + 0.0001493 (sqft\_living) + 0.2405 (grade) + 0.1194 (bathrooms)\\
-\small
-+ 0.06258 (view) + 0.02137 (condition) - 0.006042 (yr\_built)
-$$
-\ln(\text{price}) = 22.47 + 0.0001493(\text{sqft\_living}) + 0.2405(\text{grade}) + 0.1194(\text{bathrooms}) + 0.06258(\text{view}) + 0.02137(\text{condition}) - 0.006042(\text{yr\_built})
-$$
 
-We then raise the model to the power of e to get the true Price base model after our normalization process that we implemented in the beginning - this will be a crucial for when we start to model Predicted versus actual in terms of our price
+\begin{align*}
+\ln(price) &= 22.47 + 0.0001493 (sqft\_living) + 0.2405 (grade) \\
+&+ 0.1194 (bathrooms) + 0.06258 (view)
+\end{align*}
+
+
+We then raise the model to the power of e to get the true Price base model after our normalization process that we implemented in the beginning
+- this will be a crucial for when we start to model Predicted versus actual in terms of our price
 
 $$
 \text{price} = e^{22.47 + 0.0001493 (\text{sqft\_living}) + 0.2405 (\text{grade}) + 0.1194 (\text{bathrooms}) + 0.06258 (\text{view}) + 0.02137 (\text{condition}) - 0.006042 (\text{yr\_built})}
@@ -567,7 +569,7 @@ print(ridge_df)
 
 The Ridge regression model worked effectively in highlighting critical predictors and minimizing the effect of less important features. The most important predictors in predicting `price` were `sqft_living` (0.2018) and `grade` (0.2242) in line with general real estate market trends. The`bathrooms`(0.0778) and `floors` (0.1285) features worked to increase prices, showing their importance in property prices. On the other hand, `sqft_above` (-0.0712) and `bedrooms`(-0.0403) received smaller weights because, logically speaking, it is not always a sign of increased cost to possess larger top floors or additional bedrooms. Unlike in the baseline model when t-values were sufficiently high to lead to overfitting, Ridge regression effectively reduced less significant features' weights, stabilizing the models in the process. Additionally, by reducing the magnitude of correlated variables such as `sqft_living` (2.875) and `bathrooms` (2.916), Ridge assisted in repairing multicollinearity for a more stable and usable model.
 
-#### Model Visual of Ridge Regression
+### Model Visual of Ridge Regression
 
 ```{r, fig.width=7, fig.height=5}
 par(mar = c(5, 5, 4, 2) + 0.1)
