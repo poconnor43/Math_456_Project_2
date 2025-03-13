@@ -23,6 +23,10 @@ To briefly go over each package used in this project, caret has functions used f
 Although our results indicate that as much as 61% the variability in a house's price in Seattle can be determined by our final predictor variables, which reflects house quality and cost to construct, it must be repeated that due to endogeneity between factors like neighborhood median income, our predictor variables and our outcome variable that the actual strength of our model is suspect at best.
 
 # Note: We are modeling to see if there is a good multivariate regression model to predict the prices of the houses in Seattle
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(tidy=TRUE, tidy.opts=list(width.cutoff=2))
+```
+
 
 ```{r, results = 'hide'}
 library(caret) 
@@ -249,7 +253,6 @@ par(mar = c(5, 5, 4, 2) + 0.1)
 cooksD <- cooks.distance(stepwise_model)
 plot(cooksD,type="b",pch=18,col="red")
 influential <- cooksD[(cooksD > (3 * mean(cooksD, na.rm = TRUE)))]
-box(which = "outer", col = "red") # Shows the outer plot region
 ```
 
 From the values found above we see a majority have a low impact on the actual effect of the regression model, this means these points are not significantly impacting the regression model. There are multiple instance of high spikes where we have a noticabley higher cooks distance. These influential data point may in turn be affecting the accuracy of the model.
