@@ -1,7 +1,10 @@
 ---
 title: "Multivariate Linear Regression for Predicting Seattle Housing Prices"
 author: "Preston O'Connor, Khoa Dao, Nick Wierzbowski, Matthew Jacob, Anthony Yasan"
-date: "2025-03-12"
+header-includes:
+  \usepackage{fvextra}
+  \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+date: "2025-04-11"
 output:
   pdf_document: default
   word_document: default
